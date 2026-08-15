@@ -30,7 +30,8 @@ export enum ReservationStatus {
  * 날짜/시간 형식 (ISO 8601):
  * - eventDate: YYYY-MM-DD
  * - eventTime: HH:mm
- * - openTime / createdAt / updatedAt: YYYY-MM-DDTHH:mm:ssZ
+ * - openTime: YYYY-MM-DDTHH:mm:ss (대한민국 Local Time 기준, UTC 변환 없음. PM Review 반영)
+ * - createdAt / updatedAt: YYYY-MM-DDTHH:mm:ssZ (시스템 생성 시각, UTC)
  */
 export interface Reservation {
   /** UUID v4 형식 */
