@@ -14,6 +14,9 @@ export interface ValidationResult {
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TIME_PATTERN = /^\d{2}:\d{2}$/
+/** ISO 8601 datetime (예: 2026-09-01T20:00:00Z) */
+const ISO_DATETIME_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/
 
 type ReservationDraft = Omit<
   Reservation,
@@ -37,7 +40,7 @@ export function validateReservation(
   if (!draft.eventDate?.trim()) {
     errors.push('공연 날짜를 입력해주세요.')
   } else if (!DATE_PATTERN.test(draft.eventDate)) {
-    errors.push('공연 날짜 형식이 올바르지 않습니다. (예: 2026-10-10)')
+    errors.push('공연 날짜 형식이 올바르지 않습니다. (ISO 8601, 예: 2026-10-10)')
   }
 
   if (!draft.eventTime?.trim()) {
@@ -48,6 +51,10 @@ export function validateReservation(
 
   if (!draft.openTime?.trim()) {
     errors.push('예약 시작 시간을 입력해주세요.')
+  } else if (!ISO_DATETIME_PATTERN.test(draft.openTime)) {
+    errors.push(
+      '예약 시작 시간 형식이 올바르지 않습니다. (ISO 8601, 예: 2026-09-01T20:00:00Z)'
+    )
   }
 
   if (!draft.ticketCount || draft.ticketCount < 1) {
