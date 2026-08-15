@@ -141,6 +141,13 @@ function ReservationDetail() {
           </dl>
         </div>
 
+        <Link
+          to={`/ready/${reservation.id}`}
+          className="block w-full rounded-xl bg-primary-600 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+        >
+          예약 준비 화면 보기
+        </Link>
+
         <div className="flex gap-2">
           <button
             type="button"
