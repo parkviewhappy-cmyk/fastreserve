@@ -1,14 +1,16 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import Header from '@/components/layout/Header'
 import StatusBadge from '@/components/common/StatusBadge'
 import { reservationManager, getStatusLabel } from '@/domain/reservation'
 import { readyEngine } from '@/domain/ready'
 import { siteAccountManager } from '@/domain/siteAccount'
-import { getSessionStatusLabel } from '@/domain/session'
+import { getSessionStatusLabel, SessionStatus } from '@/domain/session'
 import { pluginManager } from '@/domain/pluginManager'
 import { formatVersion } from '@/domain/plugin'
 import { getNow, parseLocalDateTime } from '@/utils/time'
 import { SiteType } from '@/types/reservation'
+import { computeReadinessScore, getReadinessLabel } from './readinessScore'
 
 const SITE_LABELS: Record<SiteType, string> = {
   [SiteType.Interpark]: 'Interpark',
@@ -17,6 +19,12 @@ const SITE_LABELS: Record<SiteType, string> = {
   [SiteType.JinAir]: 'JinAir',
   [SiteType.Custom]: '기타',
 }
+
+/** 알림/진동을 1회만 발생시키기 위한 임계값(분 단위, openTime 이전). */
+const NOTICE_THRESHOLDS_MIN = [10, 5, 1] as const
+
+/** Countdown을 초 단위로 강조 표시하기 시작하는 임계값(초). */
+const URGENT_COUNTDOWN_SECONDS = 30
 
 /** openTime까지 남은 시간을 "n일 n시간 n분" 형태로 표시한다. 지났으면 "예약 시작됨"을 반환한다. */
 function formatRemainingTime(openTime: string, now: Date): string {
@@ -36,6 +44,42 @@ function formatRemainingTime(openTime: string, now: Date): string {
   return `${parts.join(' ')} 남음`
 }
 
+/** 남은 시간이 URGENT_COUNTDOWN_SECONDS 이하일 때 초 단위로 표시한다. */
+function formatUrgentCountdown(openTime: string, now: Date): string | null {
+  const diffMs = parseLocalDateTime(openTime).getTime() - now.getTime()
+  if (diffMs <= 0 || diffMs > URGENT_COUNTDOWN_SECONDS * 1000) {
+    return null
+  }
+  const seconds = Math.ceil(diffMs / 1000)
+  return `${seconds}초 남음`
+}
+
+/**
+ * 브라우저 알림을 보낸다(권한이 이미 허용된 경우에만).
+ * 자동 예약/자동 클릭과 무관한, 사용자에게 상태를 알리는 정보성 알림이다.
+ */
+function sendNotice(title: string, body: string) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return
+  if (Notification.permission === 'granted') {
+    try {
+      new Notification(title, { body })
+    } catch {
+      // 알림 생성 실패는 화면 동작에 영향을 주지 않는다(무시).
+    }
+  }
+}
+
+/** 진동 알림(지원 기기에서만 동작, 실패해도 무시). */
+function vibrate(pattern: number | number[]) {
+  if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    try {
+      navigator.vibrate(pattern)
+    } catch {
+      // 진동 미지원/실패는 무시한다.
+    }
+  }
+}
+
 /**
  * 예약 준비 화면 (/ready/:id).
  * 예약 시간이 가까워졌을 때 사용자가 확인하는 화면이다.
@@ -44,15 +88,89 @@ function formatRemainingTime(openTime: string, now: Date): string {
  * 추가 표시 항목(PM 지시, Sprint 9): 예약 URL/Plugin Version/Session 마지막 확인 시각/
  * [예약 페이지 열기] 버튼.
  *
- * [예약 페이지 열기]는 window.open()으로 예약 URL을 새 탭에 여는 것뿐이며,
- * 페이지 내부에서 어떤 자동 클릭/자동 로그인/자동 좌석 선택도 수행하지 않는다.
+ * PM 지시(Sprint 10, Reservation Assistant 전환): 자동 예약 실행 대신 "준비"를 돕는
+ * 화면으로 전환한다. 추가된 것: 실시간 Countdown, 인터넷 상태(navigator.onLine),
+ * 예약 준비 점수(100점, 로그인/Plugin/인터넷/URL 각 25점), 체크리스트, 10분/5분/1분 전
+ * 1회성 알림(+ 1분 전 진동), 30초 이하 구간 초 단위 강조 표시. 이 중 어떤 것도 예약
+ * 페이지를 자동으로 열거나, 자동 클릭/자동 로그인/자동 좌석선택/자동 결제를 수행하지
+ * 않는다 — [예약 페이지 열기] 버튼은 여전히 사용자의 수동 클릭 + window.open()만 수행한다.
  *
  * 새로운 Engine/Manager/Domain을 추가하지 않고 기존 Core(Reservation Manager,
  * Ready Engine, Site Account Manager, Session Manager, Plugin Manager)만 조합해서 사용한다.
+ * 점수 계산은 이 화면과 Home이 공유하는 순수 함수(./readinessScore)로 분리했다.
  */
 function ReadyScreen() {
   const { id } = useParams<{ id: string }>()
   const reservation = id ? reservationManager.getById(id) : undefined
+
+  // 1초마다 갱신되는 현재 시각(Countdown/체크리스트용). 실행을 트리거하지 않는다.
+  const [now, setNow] = useState<Date>(() => getNow())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(getNow()), 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  // 인터넷 연결 상태(navigator.onLine). 실제 네트워크 Ping은 수행하지 않는다.
+  const [online, setOnline] = useState<boolean>(
+    typeof navigator === 'undefined' ? true : navigator.onLine
+  )
+  useEffect(() => {
+    const handleOnline = () => setOnline(true)
+    const handleOffline = () => setOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Plugin 상태(캐시). 5분 전 시점에 한 번 재확인한다(로컬 상태 재조회일 뿐, 외부 사이트 호출 아님).
+  const [pluginHealthy, setPluginHealthy] = useState<boolean>(() =>
+    reservation ? pluginManager.isHealthy(reservation.site) : false
+  )
+
+  // 10분/5분/1분 전 알림이 이미 발생했는지 기록(재실행 방지).
+  const notifiedRef = useRef<Record<(typeof NOTICE_THRESHOLDS_MIN)[number], boolean>>({
+    10: false,
+    5: false,
+    1: false,
+  })
+
+  // 알림 권한을 최초 1회 요청한다(사용자의 브라우저 허용이 필요하며, 자동 승인되지 않는다).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {
+          // 권한 요청 실패/거부는 무시한다(정보성 기능이므로 화면 동작에 영향 없음).
+        })
+      }
+    }
+  }, [])
+
+  // 임계값 통과 시 1회성 알림 + (1분 전) 진동 + (5분 전) Plugin 재확인.
+  useEffect(() => {
+    if (!reservation) return
+    const diffMs = parseLocalDateTime(reservation.openTime).getTime() - now.getTime()
+    if (diffMs <= 0) return
+    const diffMin = diffMs / (60 * 1000)
+
+    for (const threshold of NOTICE_THRESHOLDS_MIN) {
+      if (!notifiedRef.current[threshold] && diffMin <= threshold) {
+        notifiedRef.current[threshold] = true
+        sendNotice(
+          '예약 준비 알림',
+          `"${reservation.title}" 예약 시작 ${threshold}분 전입니다.`
+        )
+        if (threshold === 5) {
+          setPluginHealthy(pluginManager.isHealthy(reservation.site))
+        }
+        if (threshold === 1) {
+          vibrate([200, 100, 200])
+        }
+      }
+    }
+  }, [now, reservation])
 
   if (!reservation) {
     return (
@@ -68,9 +186,9 @@ function ReadyScreen() {
     )
   }
 
-  const now = getNow()
   const status = readyEngine.getReservationStatus(reservation, now)
   const remainingTimeLabel = formatRemainingTime(reservation.openTime, now)
+  const urgentCountdown = formatUrgentCountdown(reservation.openTime, now)
 
   const account = siteAccountManager
     .list()
@@ -80,6 +198,16 @@ function ReadyScreen() {
     .list()
     .find((record) => record.site === reservation.site)
   const pluginAvailable = pluginManager.isAvailable(reservation.site)
+
+  const loginReady = account?.sessionStatus === SessionStatus.Ready
+  const { score, checklist } = computeReadinessScore({
+    loginReady,
+    pluginHealthy,
+    internetOnline: online,
+    urlRegistered: Boolean(reservation.url),
+  })
+  const readinessLabel = getReadinessLabel(score)
+  const healthStars = pluginHealthy ? '★★★★★' : '★★☆☆☆'
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -103,9 +231,36 @@ function ReadyScreen() {
           <p className="mt-2 text-sm text-neutral-300">
             {reservation.eventDate} · {reservation.eventTime}
           </p>
-          <p className="mt-1 text-lg font-semibold text-primary-500">
-            {remainingTimeLabel}
-          </p>
+          {urgentCountdown ? (
+            <p className="mt-1 animate-pulse text-2xl font-bold text-red-500">
+              {urgentCountdown}
+            </p>
+          ) : (
+            <p className="mt-1 text-lg font-semibold text-primary-500">
+              {remainingTimeLabel}
+            </p>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-neutral-400">예약 준비 점수</h3>
+            <span className="text-lg font-bold text-primary-500">{score}점</span>
+          </div>
+          <p className="mb-3 text-xs text-neutral-500">{readinessLabel}</p>
+          <ul className="space-y-1">
+            {checklist.map((item) => (
+              <li key={item.key} className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-neutral-300">
+                  <span className={item.ok ? 'text-emerald-500' : 'text-neutral-600'}>
+                    {item.ok ? '✓' : '○'}
+                  </span>
+                  {item.label}
+                </span>
+                <span className="text-neutral-500">{item.points}점</span>
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
@@ -115,6 +270,7 @@ function ReadyScreen() {
           <DetailRow label="인원" value={`${reservation.ticketCount}명`} />
           <DetailRow label="현재 상태" value={getStatusLabel(status)} />
           <DetailRow label="예약 URL" value={reservation.url || '-'} />
+          <DetailRow label="인터넷 상태" value={online ? '연결됨' : '연결 끊김'} />
         </div>
 
         <button
@@ -160,7 +316,14 @@ function ReadyScreen() {
         </div>
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <h3 className="mb-2 text-sm font-medium text-neutral-400">Plugin 상태</h3>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-sm font-medium text-neutral-400">Plugin 상태</h3>
+            <span
+              className={`text-xs font-semibold ${pluginHealthy ? 'text-emerald-500' : 'text-neutral-500'}`}
+            >
+              {healthStars} {pluginHealthy ? 'Plugin 정상' : 'Plugin 확인 필요'}
+            </span>
+          </div>
           {pluginRecord ? (
             <>
               <DetailRow label="Version" value={formatVersion(pluginRecord.version)} />
