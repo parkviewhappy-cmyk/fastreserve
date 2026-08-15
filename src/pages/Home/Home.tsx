@@ -3,21 +3,23 @@ import BottomNavigation from '@/components/layout/BottomNavigation'
 import StatusBadge from '@/components/common/StatusBadge'
 import ReservationCard from '@/components/common/ReservationCard'
 import { reservationService } from '@/domain/reservation'
+import { ReservationStatus } from '@/types/reservation'
 
 /**
  * 예약별 남은 시간 표시(임시 Mock).
  * Sprint 2 범위 제한: 실제 카운트다운 계산 로직은 구현하지 않는다. (이후 Sprint에서 구현)
+ * key는 Mock 데이터의 UUID와 일치해야 한다.
  */
 const MOCK_REMAINING_TIME_LABEL: Record<string, string> = {
-  'mock-1': '24일 3시간 남음',
-  'mock-2': '준비중',
-  'mock-3': '예약 종료',
+  '1b9a6942-c5f2-4c5f-a36a-b89864076144': '24일 3시간 남음',
+  'e12709e7-a9ca-4931-970a-323b92319417': '준비중',
+  'a24bfbe2-32b5-41f0-b572-8f19523e9613': '예약 종료',
 }
 
 /**
  * Home 화면.
  * Sprint 2 범위: domain/reservation Service를 통해 Mock 예약 데이터를 조회하여 카드로 표시한다.
- * 실제 저장소 연동(LocalStorage/DB/API)과 CRUD는 이후 Sprint에서 구현한다.
+ * 실제 저장소 연동(LocalStorage/DB/API)과 CRUD 화면은 이후 Sprint에서 구현한다.
  */
 function Home() {
   const reservations = reservationService.getReservations()
@@ -36,7 +38,7 @@ function Home() {
             <div>
               <p className="text-sm text-neutral-400">등록된 예약이 없습니다</p>
             </div>
-            <StatusBadge status="waiting" label="예약 준비중" />
+            <StatusBadge status={ReservationStatus.Waiting} label="예약 준비중" />
           </div>
         </section>
 
