@@ -16,6 +16,8 @@ import { scheduler } from '@/domain/scheduler'
  * Sprint 5 범위: 사이트 로그인 상태 요약은 Health Check Engine의 getReport() 결과만 사용한다.
  * Sprint 6 범위: Simulation 요약(Queue 길이/현재 실행 대상)은 Scheduler를 통해서만 조회한다.
  * (Execution Engine을 Home에서 직접 호출하지 않는다.)
+ * Sprint 7 범위(PM Review 반영): "사이트 관리" 버튼으로 Plugin 관리 화면(/plugin)에
+ * 진입할 수 있다.
  */
 function Home() {
   const reservations = reservationManager.list()
@@ -128,6 +130,16 @@ function Home() {
             className="mt-3 block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
           >
             Simulation Mode 열기
+          </Link>
+        </section>
+
+        {/* 사이트 관리 (Plugin Settings 진입, PM Review 반영: Sprint 7) */}
+        <section>
+          <Link
+            to="/plugin"
+            className="block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
+          >
+            사이트 관리
           </Link>
         </section>
 
