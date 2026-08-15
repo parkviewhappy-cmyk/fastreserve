@@ -6,6 +6,8 @@
 인터파크 전용 MVP를 먼저 완성하고, 안정성과 사용성을 검증한 후
 APK 및 다른 예약 사이트로 확장합니다.
 
+현재 버전: v0.2.0
+
 ## 개발 원칙
 
 - MVP First
@@ -14,6 +16,7 @@ APK 및 다른 예약 사이트로 확장합니다.
 - APK Later
 - Platform Later
 - Clean Architecture / Component 기반 개발
+- Component와 Business Logic 분리
 - 유지보수가 쉬운 구조
 - 무료 환경만 사용 (Git, GitHub, React, TypeScript, Vite, TailwindCSS)
 
@@ -28,22 +31,29 @@ APK 및 다른 예약 사이트로 확장합니다.
 
 ```
 fastreserve/
-├── docs/                     # PRD, 기획 문서
+├── docs/                       # PRD, 기획 문서
 ├── src/
 │   ├── adapters/
-│   │   └── interpark/        # 인터파크 전용 어댑터
+│   │   └── interpark/          # 인터파크 전용 어댑터
 │   ├── components/
-│   │   ├── common/           # Button, Dialog, Toast, StatusBadge 등 공통 컴포넌트
-│   │   └── layout/           # Header, BottomNavigation 등 레이아웃 컴포넌트
+│   │   ├── common/             # StatusBadge, ReservationCard 등 공통 컴포넌트
+│   │   └── layout/              # Header, BottomNavigation 등 레이아웃 컴포넌트
+│   ├── domain/
+│   │   └── reservation/         # Reservation 도메인 (Sprint 2)
+│   │       ├── model/            # 도메인 규칙 (순수 함수)
+│   │       ├── service/          # Business Logic
+│   │       ├── repository/       # 데이터 접근 추상화 (Mock/이후 LocalStorage/DB/API)
+│   │       ├── validator/        # 입력값 검증
+│   │       └── mock/             # Mock 데이터
 │   ├── pages/
-│   │   └── Home/             # Home 화면
-│   ├── hooks/                 # 커스텀 훅
+│   │   └── Home/                 # Home 화면
+│   ├── hooks/                     # 커스텀 훅
 │   ├── services/
-│   │   ├── storage/           # 예약/히스토리/설정 데이터 저장소
-│   │   └── notification/      # 예약 알림
-│   ├── types/                 # Reservation, History, Setting 타입
-│   ├── utils/                  # 공통 유틸 함수
-│   └── assets/                 # 이미지, 아이콘 등 정적 리소스
+│   │   ├── storage/                # 예약/히스토리/설정 데이터 저장소 (미구현)
+│   │   └── notification/           # 예약 알림 (미구현)
+│   ├── types/                       # Reservation, History, Setting 타입
+│   ├── utils/                        # 공통 유틸 함수
+│   └── assets/                        # 이미지, 아이콘 등 정적 리소스
 └── README.md
 ```
 
@@ -54,7 +64,9 @@ npm install
 npm run dev
 ```
 
-## 개발 현황 (Sprint 1)
+## 개발 현황
+
+### Sprint 1 (완료)
 
 - [x] Git / GitHub 연결
 - [x] React + Vite + TypeScript 프로젝트 생성
@@ -64,4 +76,16 @@ npm run dev
 - [x] 기본 Layout 생성 (Header, BottomNavigation)
 - [x] README 작성
 
-다음 Sprint(Sprint 2)에서 예약 CRUD 기능을 구현합니다.
+### Sprint 2 (완료)
+
+- [x] Reservation Type / Interface 정의
+- [x] Reservation Model (도메인 규칙)
+- [x] Reservation Validation
+- [x] Reservation Repository (인터페이스 + Mock 구현)
+- [x] Reservation Service
+- [x] Mock Reservation Data 3건
+- [x] Home 화면에서 Mock Data 카드 표시
+
+Sprint 2 범위에서는 LocalStorage/DB/API/인터파크 연동/CRUD를 구현하지 않았다. Repository 인터페이스를 통해 이후 Sprint에서 실제 저장소로 교체할 수 있도록 설계했다.
+
+다음 Sprint(Sprint 3)에서 카운트다운 및 예약 준비 화면을 구현한다.
