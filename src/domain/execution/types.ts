@@ -3,7 +3,7 @@ import type { ReservationStatus } from '@/types/reservation'
 
 /**
  * ExecutionContext.
- * Execution Engine이 Site Adapter에 전달하는 실행 정보 단위.
+ * Execution Engine이 Plugin에 전달하는 실행 정보 단위.
  *
  * PM Review 반영(Sprint 6): Sprint 5의 scheduler/types.ts ExecutionContext를 대체한다.
  * eventDate/eventTime을 추가하고, 소유 Domain을 execution으로 이동한다
@@ -23,7 +23,7 @@ export interface ExecutionContext {
 }
 
 /**
- * Site Adapter가 실행 시도 결과로 반환하는 값.
+ * Plugin이 실행 시도 결과로 반환하는 값.
  * ReservationStatus(예약 자체의 상태)와는 별개의 개념이다:
  * ExecutionResult는 "이번 실행 시도"의 결과이고, ReservationStatus는 예약의 지속 상태다.
  *
@@ -54,12 +54,14 @@ export interface ExecutionQueueItem {
  * Execution Timeline의 단계.
  * PM 지시(Sprint 6 Review): Queue 생성 -> Ready -> Execution Start -> Adapter 호출 -> Completed
  * 순서를 시간과 함께 Simulation 화면에 표시한다.
+ * PM Review 반영(Sprint 7): Site Adapter -> Plugin 용어 통일에 맞춰 ADAPTER_CALLED를
+ * PLUGIN_CALLED로 변경했다.
  */
 export type ExecutionTimelineStep =
   | 'QUEUED'
   | 'READY'
   | 'EXECUTION_START'
-  | 'ADAPTER_CALLED'
+  | 'PLUGIN_CALLED'
   | 'COMPLETED'
 
 /** Timeline의 개별 기록(단계 + 시각). */

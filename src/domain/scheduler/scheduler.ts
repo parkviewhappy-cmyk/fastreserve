@@ -13,7 +13,7 @@ import { getNow } from '@/utils/time'
 
 /**
  * Scheduler.
- * Reservation Manager -> Ready Engine -> Scheduler -> Execution Engine -> Site Adapter
+ * Reservation Manager -> Ready Engine -> Scheduler -> Execution Engine -> Plugin
  * 로 이어지는 파이프라인에서, Scheduler는 Reservation 조회 + Ready 판단까지만 담당하고
  * 실제 Execution Queue 생성/실행은 Execution Engine에 위임한다.
  *
@@ -59,7 +59,7 @@ export class Scheduler {
 
   /**
    * Execution Queue 항목을 실행(Simulation)한다.
-   * 실제 예약을 실행하지 않으며, Mock Site Adapter의 결과와 Execution Timeline
+   * 실제 예약을 실행하지 않으며, Mock Plugin의 결과와 Execution Timeline
    * (Queue 생성 -> Ready -> Execution Start -> Adapter 호출 -> Completed)을 반환한다.
    */
   simulateExecution(item: ExecutionQueueItem): ExecutionRun {
