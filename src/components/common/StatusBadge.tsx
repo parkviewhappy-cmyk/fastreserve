@@ -1,4 +1,4 @@
-import type { ReservationStatus } from '@/types/reservation'
+import { ReservationStatus } from '@/types/reservation'
 
 interface StatusBadgeProps {
   status: ReservationStatus
@@ -6,12 +6,12 @@ interface StatusBadgeProps {
 }
 
 const STATUS_STYLE: Record<ReservationStatus, string> = {
-  idle: 'bg-neutral-800 text-neutral-300',
-  waiting: 'bg-neutral-800 text-neutral-300',
-  preparing: 'bg-accent-500/20 text-accent-400',
-  ready: 'bg-primary-500/20 text-primary-500',
-  completed: 'bg-neutral-800 text-neutral-400',
-  failed: 'bg-red-500/20 text-red-400',
+  [ReservationStatus.Idle]: 'bg-neutral-800 text-neutral-300',
+  [ReservationStatus.Waiting]: 'bg-neutral-800 text-neutral-300',
+  [ReservationStatus.Preparing]: 'bg-accent-500/20 text-accent-400',
+  [ReservationStatus.Ready]: 'bg-primary-500/20 text-primary-500',
+  [ReservationStatus.Completed]: 'bg-neutral-800 text-neutral-400',
+  [ReservationStatus.Failed]: 'bg-red-500/20 text-red-400',
 }
 
 /**
