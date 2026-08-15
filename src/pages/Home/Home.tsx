@@ -16,8 +16,13 @@ import { scheduler } from '@/domain/scheduler'
  * Sprint 5 범위: 사이트 로그인 상태 요약은 Health Check Engine의 getReport() 결과만 사용한다.
  * Sprint 6 범위: Simulation 요약(Queue 길이/현재 실행 대상)은 Scheduler를 통해서만 조회한다.
  * (Execution Engine을 Home에서 직접 호출하지 않는다.)
- * Sprint 7 범위(PM Review 반영): "사이트 관리" 버튼으로 Plugin 관리 화면(/plugin)에
+ * Sprint 7 범위(PM Review 반영): "플러그인 관리" 버튼으로 Plugin 관리 화면(/plugin)에
  * 진입할 수 있다.
+ * Sprint 8 범위: 예약 추가/예약 목록/사이트 계정 관리(/site)/플러그인 관리(/plugin)/
+ * Simulation(/simulation)/예약 준비(/ready/:id) 모두 Home에서 클릭만으로 도달 가능하다.
+ * "사이트 계정 관리"와 "플러그인 관리"는 서로 다른 화면이므로 라벨을 구분했다
+ * (PM Review 반영: Sprint 7 검토 시 라벨 중복을 특이사항으로 보고했고, 이번 Sprint 지시에
+ * 쓰인 명칭을 그대로 반영해 구분했다).
  */
 function Home() {
   const reservations = reservationManager.list()
@@ -28,6 +33,8 @@ function Home() {
   const currentTarget = executionQueue[0]
     ? reservationManager.getById(executionQueue[0].context.reservationId)
     : undefined
+  const upcomingReservations = readyEngine.getUpcomingReservations()
+  const readyTarget = currentTarget ?? todayReservations[0] ?? upcomingReservations[0]
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -107,7 +114,7 @@ function Home() {
             to="/site"
             className="mt-3 block text-center text-xs text-neutral-500 hover:text-neutral-300"
           >
-            사이트 관리로 이동 →
+            사이트 계정 관리로 이동 →
           </Link>
         </section>
 
@@ -133,15 +140,27 @@ function Home() {
           </Link>
         </section>
 
-        {/* 사이트 관리 (Plugin Settings 진입, PM Review 반영: Sprint 7) */}
+        {/* 플러그인 관리 (Plugin Settings 진입) */}
         <section>
           <Link
             to="/plugin"
             className="block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
           >
-            사이트 관리
+            플러그인 관리
           </Link>
         </section>
+
+        {/* 예약 준비 (가장 가까운 예약으로 바로 이동) */}
+        {readyTarget && (
+          <section>
+            <Link
+              to={`/ready/${readyTarget.id}`}
+              className="block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
+            >
+              예약 준비 화면 보기 ({readyTarget.title})
+            </Link>
+          </section>
+        )}
 
         {/* 예약 추가 */}
         <section>

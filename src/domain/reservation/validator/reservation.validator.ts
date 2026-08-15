@@ -21,6 +21,15 @@ const TIME_PATTERN = /^\d{2}:\d{2}$/
  */
 const LOCAL_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
 
+/**
+ * Interpark 예약 URL 패턴.
+ * PM 지시(Sprint 8): 예약 URL은 인터파크 URL인지 정규식 기반으로 확인한다.
+ * 이번 MVP는 Interpark 하나만 지원하므로(TicketLink/YES24/JinAir 구현 안 함),
+ * URL이 입력되면 interpark.com 도메인인지 검증한다.
+ * 예) https://tickets.interpark.com/goods/... -> 정상
+ */
+const INTERPARK_URL_PATTERN = /^https:\/\/([a-z0-9-]+\.)*interpark\.com(\/|$)/i
+
 export type ReservationDraft = Omit<
   Reservation,
   'id' | 'status' | 'createdAt' | 'updatedAt'
@@ -64,8 +73,14 @@ export function validateReservation(
     errors.push('예매 인원은 1명 이상이어야 합니다.')
   }
 
-  if (draft.url && !isValidUrl(draft.url)) {
-    errors.push('공연 URL 형식이 올바르지 않습니다.')
+  if (draft.url) {
+    if (!isValidUrl(draft.url)) {
+      errors.push('공연 URL 형식이 올바르지 않습니다.')
+    } else if (!INTERPARK_URL_PATTERN.test(draft.url)) {
+      errors.push(
+        '인터파크(interpark.com) 예약 URL만 등록할 수 있습니다. (예: https://tickets.interpark.com/...)'
+      )
+    }
   }
 
   return {

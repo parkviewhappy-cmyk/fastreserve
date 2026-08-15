@@ -82,7 +82,8 @@ fastreserve/
 │   │   ├── ReservationDetail/     # 예약 상세/수정 화면
 │   │   ├── SiteSettings/          # 사이트 관리 화면 (/site, Sprint 5)
 │   │   ├── Simulation/            # Simulation Mode 화면 (/simulation, Sprint 6)
-│   │   └── PluginSettings/        # Plugin 관리 화면 (/plugin, Sprint 7)
+│   │   ├── PluginSettings/        # Plugin 관리 화면 (/plugin, Sprint 7)
+│   │   └── ReadyScreen/           # 예약 준비 화면 (/ready/:id, Sprint 8)
 │   ├── hooks/
 │   │   └── useToast.tsx           # Toast 전역 상태
 │   ├── services/
@@ -230,3 +231,26 @@ Interpark Plugin은 Mock으로만 구현했으며, Plugin Framework 구조 완�
 - `Plugin.isEnabled()`는 Registry에 저장된 활성화 상태를 조회하지 않고 Interpark Plugin(Mock)이 항상 사용 가능하다는 의미로 `true`를 고정 반환하도록 구현했다. Registry -> Plugin 방향의 의존을 추가하면 Plugin Registry(`domain/pluginRegistry`)가 이미 Plugin의 Version 타입을 참조하고 있어 양방향 결합이 생기기 때문에, "설치/활성화 여부"(사용자가 토글하는 영속 상태)는 계속 Plugin Registry/Plugin Manager가 관리하고, `isEnabled()`는 "이 Plugin 구현체가 지금 정상 동작 가능한지"(healthCheck에 가까운 개념)로 구분했다. 이 구분이 PM 의도와 맞는지 확인 부탁드린다.
 
 다음 Sprint에서 PM 승인 후 실제 Plugin(TicketLink/YES24 등) 확장 또는 Browser 연동 단계로 진행한다.
+
+### Sprint 8 (완료) — Interpark MVP
+
+PM 지시에 따라 이번 Sprint는 새로운 Engine/Manager/Domain을 추가하지 않고, 기존 Core(Reservation Manager, Ready Engine, Session Manager, Site Account Manager, Plugin Manager/Registry/Factory, Scheduler, Execution Engine)만 조합해 실제 사용 가능한 화면을 완성했다. Interpark 하나만 지원하며 TicketLink/YES24/JinAir는 구현하지 않았다.
+
+- [x] Plugin 관리 화면(`/plugin`) 개선 — Interpark 항목에 Version/설치여부/활성화여부/사용가능 여부(`Plugin.isEnabled()`)/Session 상태/마지막 확인시간을 모두 표시
+- [x] Interpark 로그인 상태 확인(Mock) — `[로그인 상태 확인]` 버튼 추가. 기존 `sessionManager.checkSession()` + `siteAccountManager.updateLoginState()`를 그대로 재사용(SiteSettings 화면과 동일 패턴)
+- [x] Session Manager에 `SessionChecker` 전략을 주입 가능하도록 확장 — 기본값은 기존 Mock 상태 흐름(`mockSessionChecker`)이며, 실제 Interpark Session Checker가 준비되면 생성자에서 교체만 하면 되는 구조. 새 Manager는 추가하지 않았다.
+- [x] 예약 URL 검증 — 기존 `validateReservation()`에 Interpark URL 정규식(`https://(하위도메인.)*interpark.com/...`)을 추가. URL이 있는데 인터파크 도메인이 아니면 오류 메시지 표시
+- [x] 예약 준비 화면(`/ready/:id`) 신설 — 예약명/예약시간/남은 시간/사이트/좌석/인원/현재 상태/Session 상태/Plugin 상태 표시. Reservation Manager/Ready Engine/Site Account Manager/Session Manager/Plugin Manager만 조합해서 사용
+- [x] Simulation 화면 개선 — Queue 새로고침 버튼 추가로 Timeline/Queue/Plugin/ExecutionResult를 실시간으로 다시 확인 가능
+- [x] Home 이동 동선 개선 — 예약 추가 / 예약 목록 / 사이트 계정 관리(`/site`) / 플러그인 관리(`/plugin`) / Simulation(`/simulation`) / 예약 준비(`/ready/:id`) 모두 Home에서 클릭만으로 도달 가능(직접 URL 입력 불필요)
+- [x] LocalStorage Persistence 확인 — Reservation/Plugin(Registry)/Site Account/Session Repository가 모두 호출 시점마다 `window.localStorage`를 다시 읽는 구조임을 코드로 확인(모듈 레벨 캐시 없음). 새로고침 후에도 정상 복원된다.
+
+구현 금지 항목(자동 로그인/자동 클릭/자동 예약/자동 결제/Playwright/Puppeteer/Chrome Extension/외부 자동화 라이브러리)은 구현하지 않았다.
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- Sprint 7 Review에서 "사이트 관리" 라벨이 `/site`와 `/plugin` 두 곳에서 겹친다고 보고했었다. 이번 Sprint 지시문에서 "사이트 계정 관리"와 "플러그인 관리"라는 서로 다른 명칭을 사용하고 있어, 이 명칭을 그대로 Home 화면 라벨에 반영해 구분했다(`/site` → "사이트 계정 관리로 이동 →", `/plugin` → "플러그인 관리").
+- Home의 "예약 준비" 진입점은 특정 예약 하나를 가리켜야 해서, 실행 대상(Execution Queue 1순위) → 오늘 예약 1번째 → 다가오는 예약 1번째 순으로 우선순위를 정해 하나를 자동으로 선택해 링크했다. 대상이 전혀 없으면 버튼을 표시하지 않는다. 예약 상세 화면에도 "예약 준비 화면 보기" 버튼을 추가해 예약별로 접근할 수 있게 했다.
+- Interpark URL 검증 정규식은 `https://` + `interpark.com` 하위 도메인까지 허용하도록 다소 넉넉하게 잡았다(`tickets.interpark.com` 등). 더 엄격하게 `tickets.interpark.com` 경로만 허용할지는 확인 부탁드린다.
+- Plugin Settings 화면의 Session 상태/마지막 확인시간/로그인 상태 확인 버튼은 Interpark 행에만 표시했다(TicketLink/YES24는 Plugin 미구현이라 Session 개념이 아직 의미가 없다고 판단했다).
+
+다음 Sprint에서 PM 승인 후 실제 Session Checker/Browser 연동 또는 History/Setting 화면으로 진행한다.

@@ -5,9 +5,10 @@ import ReservationDetail from '@/pages/ReservationDetail'
 import SiteSettings from '@/pages/SiteSettings'
 import Simulation from '@/pages/Simulation'
 import PluginSettings from '@/pages/PluginSettings'
+import ReadyScreen from '@/pages/ReadyScreen'
 
 /**
- * Sprint 7: Plugin 관리(/plugin) 라우트를 추가한다.
+ * Sprint 8: 예약 준비 화면(/ready/:id) 라우트를 추가한다.
  * 이후 Sprint에서 History, Setting 라우트를 추가한다.
  */
 function App() {
@@ -19,6 +20,7 @@ function App() {
       <Route path="/site" element={<SiteSettings />} />
       <Route path="/simulation" element={<Simulation />} />
       <Route path="/plugin" element={<PluginSettings />} />
+      <Route path="/ready/:id" element={<ReadyScreen />} />
     </Routes>
   )
 }
