@@ -1,7 +1,7 @@
 import { SiteType } from '@/types/reservation'
-import { ExecutionResult } from '@/domain/execution/types'
-import type { ExecutionContext } from '@/domain/execution/types'
-import { parseLocalDateTime, getNow } from '@/utils/time'
+import type { ExecutionContext, ExecutionResult } from '@/domain/execution/types'
+import type { SiteAdapter } from '@/domain/adapter/siteAdapter'
+import { InterparkAdapter } from '@/domain/adapter/interparkAdapter'
 import type { Plugin } from './plugin'
 import { SiteCapability, type PluginVersion } from './types'
 
@@ -19,15 +19,19 @@ const INTERPARK_CAPABILITIES: SiteCapability[] = [
 
 /**
  * Interpark Plugin (Mock).
- * 첫 번째 Plugin 구현체. 실제 Browser 제어/로그인/결제를 전혀 수행하지 않는 Mock이며,
- * Simulation Mode에서만 사용한다.
+ * 첫 번째 Plugin 구현체. Version/Capability/Enable 여부를 관리하며,
+ * Session 확인/Reservation URL 처리/Site 연결 등 실제 사이트 동작은
+ * 내부에 감싸고 있는 Site Adapter(domain/adapter)에 위임한다
+ * (Execution Engine -> Plugin -> Adapter 구조, PM Review 반영/Sprint 7).
  *
  * 기능 범위(PM 지시, Sprint 7): Plugin 정보 반환 / Capability 반환 / Mock Session 확인 /
- * Mock Reservation URL 확인 / ExecutionResult 반환.
+ * Mock Reservation URL 확인 / ExecutionResult 반환. 실제 Browser 제어 없음.
  */
 export class InterparkPlugin implements Plugin {
+  constructor(private readonly adapter: SiteAdapter = new InterparkAdapter()) {}
+
   getSite(): SiteType {
-    return SiteType.Interpark
+    return this.adapter.site
   }
 
   getVersion(): PluginVersion {
@@ -38,37 +42,32 @@ export class InterparkPlugin implements Plugin {
     return [...INTERPARK_CAPABILITIES]
   }
 
-  prepare(): void {
-    // Mock: 실제 준비 동작 없음
-  }
-
-  /** Session 확인 (Mock). 실제 Session 검증은 향후 실 구현에서 처리한다. */
-  checkSession(): boolean {
+  /** Interpark Plugin(Mock)은 항상 사용 가능하다고 본다. 설치/활성화 여부는 Plugin Registry가 별도로 관리한다. */
+  isEnabled(): boolean {
     return true
   }
 
-  openReservation(): void {
-    // Mock: 실제로 페이지를 열지 않는다.
+  prepare(context: ExecutionContext): void {
+    this.adapter.prepare(context)
   }
 
-  /** Reservation URL 확인 + ExecutionResult 반환 (Mock). 실제 예약을 수행하지 않는다. */
+  checkSession(context: ExecutionContext): boolean {
+    return this.adapter.checkSession(context)
+  }
+
+  openReservation(context: ExecutionContext): void {
+    this.adapter.openReservationPage(context)
+  }
+
   execute(context: ExecutionContext): ExecutionResult {
-    if (!context.reservationUrl) {
-      return ExecutionResult.Skipped
-    }
-    const openTime = parseLocalDateTime(context.openTime)
-    const now = getNow()
-    if (now.getTime() < openTime.getTime()) {
-      return ExecutionResult.Waiting
-    }
-    return ExecutionResult.Success
+    return this.adapter.execute(context)
   }
 
   healthCheck(): boolean {
-    return true
+    return this.adapter.healthCheck()
   }
 
-  cancel(): void {
-    // Mock: 취소할 실제 실행이 없다.
+  cancel(context: ExecutionContext): void {
+    this.adapter.cancel(context)
   }
 }
