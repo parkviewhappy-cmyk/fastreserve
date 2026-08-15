@@ -41,6 +41,11 @@ function formatRemainingTime(openTime: string, now: Date): string {
  * 예약 시간이 가까워졌을 때 사용자가 확인하는 화면이다.
  * 표시 항목(PM 지시, Sprint 8): 예약명/예약시간/남은 시간/사이트/좌석/인원/현재 상태/
  * Session 상태/Plugin 상태.
+ * 추가 표시 항목(PM 지시, Sprint 9): 예약 URL/Plugin Version/Session 마지막 확인 시각/
+ * [예약 페이지 열기] 버튼.
+ *
+ * [예약 페이지 열기]는 window.open()으로 예약 URL을 새 탭에 여는 것뿐이며,
+ * 페이지 내부에서 어떤 자동 클릭/자동 로그인/자동 좌석 선택도 수행하지 않는다.
  *
  * 새로운 Engine/Manager/Domain을 추가하지 않고 기존 Core(Reservation Manager,
  * Ready Engine, Site Account Manager, Session Manager, Plugin Manager)만 조합해서 사용한다.
@@ -109,7 +114,26 @@ function ReadyScreen() {
           <DetailRow label="좌석" value={reservation.preferredSeat || '-'} />
           <DetailRow label="인원" value={`${reservation.ticketCount}명`} />
           <DetailRow label="현재 상태" value={getStatusLabel(status)} />
+          <DetailRow label="예약 URL" value={reservation.url || '-'} />
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            if (reservation.url) {
+              window.open(reservation.url, '_blank', 'noopener,noreferrer')
+            }
+          }}
+          disabled={!reservation.url}
+          className="block w-full rounded-xl bg-primary-600 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-primary-700 disabled:cursor-not-allowed disabled:bg-neutral-800 disabled:text-neutral-500"
+        >
+          예약 페이지 열기
+        </button>
+        {!reservation.url && (
+          <p className="-mt-2 text-xs text-neutral-500">
+            등록된 예약 URL이 없어 열 수 없습니다.
+          </p>
+        )}
 
         <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <h3 className="mb-2 text-sm font-medium text-neutral-400">Session 상태</h3>
