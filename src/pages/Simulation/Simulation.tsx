@@ -15,9 +15,10 @@ import {
 import { SiteType } from '@/types/reservation'
 
 const RESULT_LABEL: Record<ExecutionResult, string> = {
-  [ExecutionResult.Success]: '성공(Mock)',
-  [ExecutionResult.Failed]: '실패(Mock)',
-  [ExecutionResult.Waiting]: '대기',
+  // Sprint 10: ExecutionResult.Success는 "예약 성공"이 아니라 "예약 준비 완료"를 의미한다.
+  [ExecutionResult.Success]: '준비 완료',
+  [ExecutionResult.Failed]: '준비 실패',
+  [ExecutionResult.Waiting]: '대기(로그인 필요)',
   [ExecutionResult.Running]: '진행중',
   [ExecutionResult.Skipped]: '건너뜀',
   [ExecutionResult.Retry]: '재시도 필요',
@@ -62,6 +63,14 @@ function formatTimelineTime(value: string): string {
  * PM 지시(Sprint 9): "Plugin 실행 -> 예약 페이지 열기 예정 -> Execution 결과" 흐름을
  * 항목별 버튼/표시로 나타낸다. "예약 페이지 열기"는 window.open()으로 URL을 새 탭에
  * 여는 것뿐이며, 실제 Browser 제어(자동 클릭 등)는 하지 않는다.
+ *
+ * PM 지시(Sprint 10, Reservation Assistant 전환): "Execution Simulation"을
+ * "Preparation Simulation"으로 재정의한다. 화면이 보여주는 것은 실제 예약 실행이 아니라
+ * "예약 준비가 끝났는지"를 확인하는 과정이다(예시 흐름: 로그인 OK -> Plugin OK ->
+ * 예약 페이지 준비 -> 사용자가 예매 시작). Scheduler.simulateExecution()은 내부적으로
+ * Execution Engine의 prepareExecution()을 호출할 뿐 실제 예약을 실행하지 않으며,
+ * ExecutionResult.Success는 "준비 완료"를 의미한다(메서드 이름 자체는 기존 코드와의
+ * 연결을 유지하기 위해 그대로 두었다).
  */
 function Simulation() {
   const { showToast } = useToast()
@@ -80,17 +89,22 @@ function Simulation() {
   function handleRun(item: ExecutionQueueItem) {
     const run = scheduler.simulateExecution(item)
     setRuns((prev) => ({ ...prev, [item.context.reservationId]: run }))
-    showToast(`Simulation 결과: ${RESULT_LABEL[run.result]}`, 'info')
+    showToast(`예약 준비 확인 결과: ${RESULT_LABEL[run.result]}`, 'info')
   }
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header title="Simulation Mode" />
+      <Header title="Preparation Simulation" />
 
       <main className="flex-1 space-y-4 px-4 py-6">
         <Link to="/" className="text-xs text-neutral-500 hover:text-neutral-300">
           ← 홈으로
         </Link>
+
+        <p className="text-xs text-neutral-500">
+          예시 흐름: 로그인 OK → Plugin OK → 예약 페이지 준비 → 사용자가 예매 시작
+          (실제 예약 실행/자동 클릭 없음)
+        </p>
 
         <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4">
           <div>
@@ -180,7 +194,7 @@ function Simulation() {
                       onClick={() => handleRun(item)}
                       className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                     >
-                      1. Plugin 실행
+                      1. 예약 준비 확인
                     </button>
 
                     <button
@@ -202,7 +216,7 @@ function Simulation() {
 
                     {run && (
                       <span className="text-xs text-neutral-400">
-                        3. Execution 결과: {RESULT_LABEL[run.result]}
+                        3. 준비 결과: {RESULT_LABEL[run.result]}
                       </span>
                     )}
                   </div>
