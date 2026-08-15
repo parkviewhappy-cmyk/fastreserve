@@ -1,12 +1,18 @@
 import { Routes, Route } from 'react-router-dom'
 import Home from '@/pages/Home'
+import AddReservation from '@/pages/AddReservation'
+import ReservationDetail from '@/pages/ReservationDetail'
 
-// Sprint 1: Home 화면만 라우팅한다.
-// 이후 Sprint에서 Add Reservation, Reservation Detail, Ready, History, Setting 라우트를 추가한다.
+/**
+ * Sprint 3: Reservation 등록/상세(수정·삭제) 라우트를 추가한다.
+ * 이후 Sprint에서 Ready, History, Setting 라우트를 추가한다.
+ */
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/add" element={<AddReservation />} />
+      <Route path="/reservation/:id" element={<ReservationDetail />} />
     </Routes>
   )
 }

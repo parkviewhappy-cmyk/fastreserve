@@ -1,73 +1,91 @@
+import { Link } from 'react-router-dom'
 import Header from '@/components/layout/Header'
 import BottomNavigation from '@/components/layout/BottomNavigation'
-import StatusBadge from '@/components/common/StatusBadge'
 import ReservationCard from '@/components/common/ReservationCard'
-import { reservationService } from '@/domain/reservation'
+import { reservationManager } from '@/domain/reservation'
 import { ReservationStatus } from '@/types/reservation'
 
-/**
- * 예약별 남은 시간 표시(임시 Mock).
- * Sprint 2 범위 제한: 실제 카운트다운 계산 로직은 구현하지 않는다. (이후 Sprint에서 구현)
- * key는 Mock 데이터의 UUID와 일치해야 한다.
- */
-const MOCK_REMAINING_TIME_LABEL: Record<string, string> = {
-  '1b9a6942-c5f2-4c5f-a36a-b89864076144': '24일 3시간 남음',
-  'e12709e7-a9ca-4931-970a-323b92319417': '준비중',
-  'a24bfbe2-32b5-41f0-b572-8f19523e9613': '예약 종료',
+function getTodayDateString(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
 /**
  * Home 화면.
- * Sprint 2 범위: domain/reservation Service를 통해 Mock 예약 데이터를 조회하여 카드로 표시한다.
- * 실제 저장소 연동(LocalStorage/DB/API)과 CRUD 화면은 이후 Sprint에서 구현한다.
+ * Sprint 3 범위: ReservationManager(LocalStorage 기반)를 통해 예약 목록을 조회하여
+ * 예약 개수 / 오늘 예약 / 예약 준비중 개수 / Reservation Card 목록을 표시한다.
  */
 function Home() {
-  const reservations = reservationService.getReservations()
+  const reservations = reservationManager.list()
+  const todayReservations = reservations.filter(
+    (reservation) => reservation.eventDate === getTodayDateString()
+  )
+  const waitingCount = reservations.filter(
+    (reservation) => reservation.status === ReservationStatus.Waiting
+  ).length
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header title="FastReserve" />
 
       <main className="flex-1 space-y-6 px-4 py-6">
+        {/* 요약 정보 */}
+        <section className="grid grid-cols-2 gap-3">
+          <SummaryCard label="예약 개수" value={reservations.length} />
+          <SummaryCard label="예약 준비중" value={waitingCount} />
+        </section>
+
         {/* 오늘 예약 */}
         <section>
           <h2 className="mb-3 text-sm font-medium text-neutral-400">
             오늘 예약
           </h2>
-          <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-            <div>
-              <p className="text-sm text-neutral-400">등록된 예약이 없습니다</p>
+          {todayReservations.length === 0 ? (
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4 text-sm text-neutral-400">
+              오늘 예정된 공연이 없습니다
             </div>
-            <StatusBadge status={ReservationStatus.Waiting} label="예약 준비중" />
-          </div>
+          ) : (
+            <div className="space-y-3">
+              {todayReservations.map((reservation) => (
+                <Link key={reservation.id} to={`/reservation/${reservation.id}`}>
+                  <ReservationCard reservation={reservation} />
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
-        {/* 예약 목록 (Sprint 2: Mock Data) */}
+        {/* 예약 목록 */}
         <section>
           <h2 className="mb-3 text-sm font-medium text-neutral-400">
             예약 목록
           </h2>
-          <div className="space-y-3">
-            {reservations.map((reservation) => (
-              <ReservationCard
-                key={reservation.id}
-                reservation={reservation}
-                remainingTimeLabel={
-                  MOCK_REMAINING_TIME_LABEL[reservation.id] ?? '-'
-                }
-              />
-            ))}
-          </div>
+          {reservations.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-neutral-800 p-6 text-center text-sm text-neutral-500">
+              예약 목록이 비어 있습니다
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reservations.map((reservation) => (
+                <Link key={reservation.id} to={`/reservation/${reservation.id}`}>
+                  <ReservationCard reservation={reservation} />
+                </Link>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* 예약 추가 */}
         <section>
-          <button
-            type="button"
-            className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white transition-colors hover:bg-primary-700"
+          <Link
+            to="/add"
+            className="block w-full rounded-xl bg-primary-600 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-primary-700"
           >
             예약 추가
-          </button>
+          </Link>
         </section>
 
         {/* 설정 진입 */}
@@ -82,6 +100,15 @@ function Home() {
       </main>
 
       <BottomNavigation />
+    </div>
+  )
+}
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+      <p className="text-xs text-neutral-500">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-neutral-50">{value}</p>
     </div>
   )
 }
