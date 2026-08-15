@@ -108,10 +108,12 @@ npm run dev
 ### Sprint 4 (완료)
 
 - [x] Ready Engine 도메인 구축 (`src/domain/ready/`)
-- [x] Reservation Status Calculator (openTime 기준 실시간 상태 계산)
+- [x] Reservation Status Calculator (ReadyRule 기반 실시간 상태 계산, Magic Number 없음)
 - [x] Today / Upcoming / Ready / Completed / Failed Filter
-- [x] Dashboard Summary (총 예약 / 오늘 예약 / 준비중 / 준비 완료 / 완료 / 실패)
+- [x] Dashboard Summary (총 예약 / 오늘 예약 / 준비중 / 준비중(Preparing) / 준비 완료 / 진행중 / 완료 / 실패)
 - [x] Home 화면 Dashboard를 Ready Engine 결과로만 연동 (직접 계산 제거)
+- [x] ReservationStatus에 Running 추가 (상태 체계는 ReservationStatus 하나로 통일, 별도 ReadyStatus 없음)
+- [x] ReadyRule 객체로 시간 기준 관리 (기본값: Preparing 60분 / Ready 10분 / Running 0분)
 
 Sprint 4 범위에서는 인터파크 연동/Browser 제어/Scheduler/Notification/Countdown/API/APK를 구현하지 않았다.
 Reservation Manager와 Repository는 수정하지 않았다.
