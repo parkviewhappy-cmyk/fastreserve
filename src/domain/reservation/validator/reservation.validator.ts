@@ -24,11 +24,16 @@ const LOCAL_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
 /**
  * Interpark 예약 URL 패턴.
  * PM 지시(Sprint 8): 예약 URL은 인터파크 URL인지 정규식 기반으로 확인한다.
- * 이번 MVP는 Interpark 하나만 지원하므로(TicketLink/YES24/JinAir 구현 안 함),
- * URL이 입력되면 interpark.com 도메인인지 검증한다.
- * 예) https://tickets.interpark.com/goods/... -> 정상
+ * PM 지시(Sprint 9): 검증을 강화한다. interpark.com 도메인 전체가 아니라
+ * 실제 예약(티켓) 도메인인 tickets.interpark.com(및 그 하위 도메인, 예: m.tickets.interpark.com)
+ * 만 허용한다. shop.interpark.com/tour.interpark.com/book.interpark.com 등
+ * 다른 interpark.com 하위 서비스 도메인은 실패 처리한다.
+ * 이번 MVP는 Interpark 하나만 지원한다(TicketLink/YES24/JinAir 구현 안 함).
+ * 허용 예) https://tickets.interpark.com/... , https://m.tickets.interpark.com/...
+ * 실패 예) https://shop.interpark.com/... , https://tour.interpark.com/...
  */
-const INTERPARK_URL_PATTERN = /^https:\/\/([a-z0-9-]+\.)*interpark\.com(\/|$)/i
+const INTERPARK_URL_PATTERN =
+  /^https:\/\/([a-z0-9-]+\.)*tickets\.interpark\.com(\/|$)/i
 
 export type ReservationDraft = Omit<
   Reservation,
@@ -78,7 +83,7 @@ export function validateReservation(
       errors.push('공연 URL 형식이 올바르지 않습니다.')
     } else if (!INTERPARK_URL_PATTERN.test(draft.url)) {
       errors.push(
-        '인터파크(interpark.com) 예약 URL만 등록할 수 있습니다. (예: https://tickets.interpark.com/...)'
+        '인터파크 예약 페이지(tickets.interpark.com) URL만 등록할 수 있습니다. (예: https://tickets.interpark.com/...)'
       )
     }
   }
