@@ -1,10 +1,4 @@
-export type ReservationStatus =
-  | 'idle'
-  | 'waiting'
-  | 'preparing'
-  | 'ready'
-  | 'completed'
-  | 'failed'
+import type { ReservationStatus } from '@/types/reservation'
 
 interface StatusBadgeProps {
   status: ReservationStatus
