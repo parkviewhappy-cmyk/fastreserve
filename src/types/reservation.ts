@@ -12,13 +12,18 @@ export enum SiteType {
 /**
  * 예약 상태.
  * 참고: docs/PRD.md - 8. 상태(State)
- * Idle -> Waiting -> Preparing -> Ready -> Completed, 오류 시 Failed
+ * Idle -> Waiting -> Preparing -> Ready -> Running -> Completed, 오류 시 Failed
+ *
+ * PM Review 반영(Sprint 4): Running을 추가했다. 프로젝트의 상태 체계는
+ * ReservationStatus 하나만 사용하며, Ready Engine이 계산하는 실시간 상태도
+ * 이 Enum을 그대로 사용한다(별도의 ReadyStatus Enum을 두지 않는다).
  */
 export enum ReservationStatus {
   Idle = 'idle',
   Waiting = 'waiting',
   Preparing = 'preparing',
   Ready = 'ready',
+  Running = 'running',
   Completed = 'completed',
   Failed = 'failed',
 }
