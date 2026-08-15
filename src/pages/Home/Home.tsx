@@ -1,13 +1,27 @@
 import Header from '@/components/layout/Header'
 import BottomNavigation from '@/components/layout/BottomNavigation'
 import StatusBadge from '@/components/common/StatusBadge'
+import ReservationCard from '@/components/common/ReservationCard'
+import { reservationService } from '@/domain/reservation'
+
+/**
+ * 예약별 남은 시간 표시(임시 Mock).
+ * Sprint 2 범위 제한: 실제 카운트다운 계산 로직은 구현하지 않는다. (이후 Sprint에서 구현)
+ */
+const MOCK_REMAINING_TIME_LABEL: Record<string, string> = {
+  'mock-1': '24일 3시간 남음',
+  'mock-2': '준비중',
+  'mock-3': '예약 종료',
+}
 
 /**
  * Home 화면.
- * Sprint 1 범위: 정적 UI 구성만 포함한다.
- * 예약 데이터 연동은 Sprint 2(예약 CRUD)에서 진행한다.
+ * Sprint 2 범위: domain/reservation Service를 통해 Mock 예약 데이터를 조회하여 카드로 표시한다.
+ * 실제 저장소 연동(LocalStorage/DB/API)과 CRUD는 이후 Sprint에서 구현한다.
  */
 function Home() {
+  const reservations = reservationService.getReservations()
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header title="FastReserve" />
@@ -26,13 +40,21 @@ function Home() {
           </div>
         </section>
 
-        {/* 예약 목록 */}
+        {/* 예약 목록 (Sprint 2: Mock Data) */}
         <section>
           <h2 className="mb-3 text-sm font-medium text-neutral-400">
             예약 목록
           </h2>
-          <div className="rounded-xl border border-dashed border-neutral-800 p-6 text-center text-sm text-neutral-500">
-            예약 목록이 비어 있습니다
+          <div className="space-y-3">
+            {reservations.map((reservation) => (
+              <ReservationCard
+                key={reservation.id}
+                reservation={reservation}
+                remainingTimeLabel={
+                  MOCK_REMAINING_TIME_LABEL[reservation.id] ?? '-'
+                }
+              />
+            ))}
           </div>
         </section>
 
