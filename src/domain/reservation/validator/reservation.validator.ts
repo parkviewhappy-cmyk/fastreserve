@@ -14,9 +14,12 @@ export interface ValidationResult {
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TIME_PATTERN = /^\d{2}:\d{2}$/
-/** ISO 8601 datetime (예: 2026-09-01T20:00:00Z) */
-const ISO_DATETIME_PATTERN =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/
+/**
+ * 예약 시작 시간(openTime) 형식.
+ * PM Review 반영: 대한민국(KST) Local Time을 그대로 저장하며 UTC 변환하지 않는다.
+ * 따라서 타임존 표기(Z, +09:00 등)는 허용하지 않는다. (예: 2026-09-01T20:00:00)
+ */
+const LOCAL_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/
 
 export type ReservationDraft = Omit<
   Reservation,
@@ -51,9 +54,9 @@ export function validateReservation(
 
   if (!draft.openTime?.trim()) {
     errors.push('예약 시작 시간을 입력해주세요.')
-  } else if (!ISO_DATETIME_PATTERN.test(draft.openTime)) {
+  } else if (!LOCAL_DATETIME_PATTERN.test(draft.openTime)) {
     errors.push(
-      '예약 시작 시간 형식이 올바르지 않습니다. (ISO 8601, 예: 2026-09-01T20:00:00Z)'
+      '예약 시작 시간 형식이 올바르지 않습니다. (예: 2026-09-01T20:00:00, 대한민국 Local Time 기준)'
     )
   }
 

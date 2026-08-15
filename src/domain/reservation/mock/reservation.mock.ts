@@ -7,6 +7,7 @@ import type { Reservation } from '@/types/reservation'
  * PM 제공 예시에 없는 값(공연 URL, 메모 등)은 임의의 플레이스홀더로 채웠다.
  *
  * PM Review 반영: id는 UUID v4 형식, 날짜/시간은 ISO 8601 형식으로 통일했다.
+ * openTime은 대한민국(KST) Local Time 그대로 저장하며 UTC 변환(Z)을 붙이지 않는다.
  */
 export const mockReservations: Reservation[] = [
   {
@@ -16,7 +17,7 @@ export const mockReservations: Reservation[] = [
     eventName: '임영웅 콘서트',
     eventDate: '2026-10-10',
     eventTime: '19:00',
-    openTime: '2026-09-01T20:00:00Z',
+    openTime: '2026-09-01T20:00:00',
     url: 'https://tickets.interpark.com/goods/26000001',
     preferredSeat: 'VIP',
     ticketCount: 2,
@@ -32,7 +33,7 @@ export const mockReservations: Reservation[] = [
     eventName: '뮤지컬 위키드',
     eventDate: '2026-11-05',
     eventTime: '19:30',
-    openTime: '2026-09-15T14:00:00Z',
+    openTime: '2026-09-15T14:00:00',
     url: 'https://tickets.interpark.com/goods/26000002',
     preferredSeat: 'R석',
     ticketCount: 1,
@@ -48,7 +49,7 @@ export const mockReservations: Reservation[] = [
     eventName: '콜드플레이 내한공연',
     eventDate: '2026-07-20',
     eventTime: '20:00',
-    openTime: '2026-06-01T20:00:00Z',
+    openTime: '2026-06-01T20:00:00',
     url: 'https://tickets.interpark.com/goods/26000003',
     preferredSeat: 'S석',
     ticketCount: 2,
