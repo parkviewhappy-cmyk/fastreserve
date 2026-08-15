@@ -3,10 +3,11 @@ import Home from '@/pages/Home'
 import AddReservation from '@/pages/AddReservation'
 import ReservationDetail from '@/pages/ReservationDetail'
 import SiteSettings from '@/pages/SiteSettings'
+import Simulation from '@/pages/Simulation'
 
 /**
- * Sprint 5: 사이트 관리(/site) 라우트를 추가한다.
- * 이후 Sprint에서 Ready, History, Setting 라우트를 추가한다.
+ * Sprint 6: Simulation Mode(/simulation) 라우트를 추가한다.
+ * 이후 Sprint에서 History, Setting 라우트를 추가한다.
  */
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
       <Route path="/add" element={<AddReservation />} />
       <Route path="/reservation/:id" element={<ReservationDetail />} />
       <Route path="/site" element={<SiteSettings />} />
+      <Route path="/simulation" element={<Simulation />} />
     </Routes>
   )
 }
