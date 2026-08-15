@@ -25,6 +25,7 @@ const STATUS_LABEL: Record<ReservationStatus, string> = {
   [ReservationStatus.Waiting]: '예약 준비중',
   [ReservationStatus.Preparing]: '준비중',
   [ReservationStatus.Ready]: '준비 완료',
+  [ReservationStatus.Running]: '진행중',
   [ReservationStatus.Completed]: '완료',
   [ReservationStatus.Failed]: '실패',
 }

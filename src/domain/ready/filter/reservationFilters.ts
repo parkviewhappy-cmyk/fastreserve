@@ -1,7 +1,8 @@
 import type { Reservation } from '@/types/reservation'
+import { ReservationStatus } from '@/types/reservation'
 import { getTodayDateString } from '@/utils/time'
-import { ReadyStatus } from '../types'
-import { calculateReadyStatus } from '../calculator/reservationStatusCalculator'
+import { DEFAULT_READY_RULE, type ReadyRule } from '../rule/readyRule'
+import { calculateReservationStatus } from '../calculator/reservationStatusCalculator'
 
 /** Today Reservation Filter: 오늘(Local 기준) 공연일과 일치하는 예약만 반환한다. */
 export function filterTodayReservations(
@@ -14,47 +15,54 @@ export function filterTodayReservations(
 /** Upcoming Reservation Filter: 아직 오픈 전(Waiting/Preparing/Ready)인 예약만 반환한다. */
 export function filterUpcomingReservations(
   reservations: Reservation[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  rule: ReadyRule = DEFAULT_READY_RULE
 ): Reservation[] {
   return reservations.filter((reservation) => {
-    const status = calculateReadyStatus(reservation, now)
+    const status = calculateReservationStatus(reservation, now, rule)
     return (
-      status === ReadyStatus.Waiting ||
-      status === ReadyStatus.Preparing ||
-      status === ReadyStatus.Ready
+      status === ReservationStatus.Waiting ||
+      status === ReservationStatus.Preparing ||
+      status === ReservationStatus.Ready
     )
   })
 }
 
-/** Ready Reservation Filter: 오픈이 임박(Ready)한 예약만 반환한다. */
+/** Ready Reservation Filter: 오픈이 임박(Ready)한 예약만 반환한다. Running과는 구분한다. */
 export function filterReadyReservations(
   reservations: Reservation[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  rule: ReadyRule = DEFAULT_READY_RULE
 ): Reservation[] {
   return reservations.filter(
     (reservation) =>
-      calculateReadyStatus(reservation, now) === ReadyStatus.Ready
+      calculateReservationStatus(reservation, now, rule) ===
+      ReservationStatus.Ready
   )
 }
 
-/** Completed Reservation Filter: 오픈 시간이 지나 완료된 예약만 반환한다. */
+/** Completed Reservation Filter: 완료된 예약만 반환한다. */
 export function filterCompletedReservations(
   reservations: Reservation[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  rule: ReadyRule = DEFAULT_READY_RULE
 ): Reservation[] {
   return reservations.filter(
     (reservation) =>
-      calculateReadyStatus(reservation, now) === ReadyStatus.Completed
+      calculateReservationStatus(reservation, now, rule) ===
+      ReservationStatus.Completed
   )
 }
 
 /** Failed Reservation Filter: 실패로 표시된 예약만 반환한다. */
 export function filterFailedReservations(
   reservations: Reservation[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  rule: ReadyRule = DEFAULT_READY_RULE
 ): Reservation[] {
   return reservations.filter(
     (reservation) =>
-      calculateReadyStatus(reservation, now) === ReadyStatus.Failed
+      calculateReservationStatus(reservation, now, rule) ===
+      ReservationStatus.Failed
   )
 }
