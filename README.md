@@ -58,20 +58,31 @@ fastreserve/
 │   │   ├── scheduler/             # Reservation Scan/Ready 판단 + Execution Engine 위임 (Sprint 6)
 │   │   ├── healthCheck/           # Health Check 도메인 (Sprint 5)
 │   │   ├── execution/              # Execution Engine 도메인 (Sprint 6)
-│   │   │   ├── engine/              # Execution Engine (Queue 생성/Priority/Adapter 선택/실행)
+│   │   │   ├── engine/              # Execution Engine (Queue 생성/Priority/Plugin 선택/실행)
 │   │   │   ├── rule/                # ExecutionRule (Magic Number 제거)
 │   │   │   ├── factory/             # ExecutionContext Factory
 │   │   │   └── types.ts             # ExecutionContext / ExecutionResult / ExecutionQueueItem
-│   │   └── adapter/                # Site Adapter 도메인 (Sprint 6)
-│   │       ├── siteAdapter.ts        # Site Adapter Interface
-│   │       ├── interparkAdapter.ts   # Interpark Mock Adapter
-│   │       └── adapter.registry.ts   # SiteType -> Adapter 조회
+│   │   ├── plugin/                 # Plugin 도메인 (Sprint 7, Site Adapter 도메인 대체)
+│   │   │   ├── plugin.ts             # Plugin Interface
+│   │   │   ├── interparkPlugin.ts    # Interpark Plugin (Mock)
+│   │   │   ├── plugin.factory.ts     # Plugin Factory - createPlugin(site)
+│   │   │   ├── rule/                 # PluginRule (Magic Number 제거)
+│   │   │   ├── version/              # PluginVersion 비교 Utility
+│   │   │   ├── model/                # SiteCapability 한글 라벨
+│   │   │   └── types.ts              # PluginVersion / SiteCapability
+│   │   ├── pluginManager/          # Plugin Manager 도메인 (Sprint 7)
+│   │   │   └── pluginManager.ts      # 등록/제거/조회/활성화/비활성화/Version/Capability 조회
+│   │   └── pluginRegistry/         # Plugin Registry 도메인 (Sprint 7)
+│   │       ├── pluginRegistry.ts     # Plugin 목록(메타데이터) LocalStorage 저장 (생성은 안 함)
+│   │       ├── defaults/             # 기본 Plugin Seed (Interpark)
+│   │       └── types.ts              # PluginRecord
 │   ├── pages/
 │   │   ├── Home/                  # Home 화면 (Dashboard 포함)
 │   │   ├── AddReservation/        # 예약 등록 화면
 │   │   ├── ReservationDetail/     # 예약 상세/수정 화면
 │   │   ├── SiteSettings/          # 사이트 관리 화면 (/site, Sprint 5)
-│   │   └── Simulation/            # Simulation Mode 화면 (/simulation, Sprint 6)
+│   │   ├── Simulation/            # Simulation Mode 화면 (/simulation, Sprint 6)
+│   │   └── PluginSettings/        # Plugin 관리 화면 (/plugin, Sprint 7)
 │   ├── hooks/
 │   │   └── useToast.tsx           # Toast 전역 상태
 │   ├── services/
@@ -188,3 +199,28 @@ Interpark Adapter는 Mock으로만 구현했으며, 실제 예약은 실행하�
 **설계 결정 (특이사항, PM 확인 요청)**
 - Timeline의 "Queue 생성"과 "Ready" 시각은 동일 시점(`queuedAt`)으로 기록한다. Execution Queue는 이미 Ready/Running 상태인 예약만 담기 때문에, Queue에 편입되는 순간이 곧 Ready가 확인된 순간이라고 판단했다. openTime 기준으로 "언제 Ready 상태가 되었는지"를 ReadyRule로 역산하는 방식도 검토했으나, Execution 도메인이 ReadyRule 내부 계산식에 의존하게 되는 추가 결합이 생겨 이번 Sprint 범위에서는 제외했다.
 - `simulateExecution`/`execute`가 받는 인자를 `ExecutionContext`에서 `ExecutionQueueItem`으로 변경했다. Timeline의 "Queue 생성"/"Ready" 단계 시각(`queuedAt`)이 Queue 항목에만 존재하기 때문이다(PM이 지정한 ExecutionContext 필드 목록 자체는 변경하지 않았다).
+
+### Sprint 7 (완료)
+
+- [x] Plugin 도메인 구축 (`src/domain/plugin/`) — Plugin Interface(getSite/getVersion/getCapabilities/prepare/checkSession/openReservation/execute/healthCheck/cancel), PluginVersion(major/minor/patch) + 비교 Utility(compareVersions/formatVersion/isVersionEqual 등)
+- [x] PluginRule 객체로 등록 기준값 관리 (`autoEnable`, `allowMultipleVersion`, `defaultVersion` — Plugin 등록 로직은 이 Rule만 참조)
+- [x] Interpark Plugin(Mock) — Plugin 정보 반환 / Capability 반환 / Mock Session 확인 / Mock Reservation URL 확인 / ExecutionResult 반환 (실제 Browser 제어 없음)
+- [x] Plugin Factory — `createPlugin(site)`로 Interpark Plugin 제공 (TicketLink/YES24는 아직 미구현, undefined 반환)
+- [x] Plugin Registry(`src/domain/pluginRegistry/`) — Plugin 목록(메타데이터, PluginRecord)만 LocalStorage로 관리. Plugin 인스턴스 생성은 하지 않는다. Interpark 기본 Seed(설치+활성화)
+- [x] Plugin Manager(`src/domain/pluginManager/`) — 등록/제거/조회/활성화/비활성화/Version 확인/Capability 조회
+- [x] Execution Engine이 Plugin Factory만 호출하도록 전환 (`domain/adapter`의 Site Adapter Interface/Interpark Adapter/Site Adapter Factory를 Plugin 개념으로 대체하고 기존 `domain/adapter`는 삭제)
+- [x] Plugin Settings 화면 (`/plugin`) — Interpark/TicketLink/YES24 목록, 설치된 Plugin은 Version/Enabled/Capabilities 표시, 설치/활성화/비활성화/삭제
+- [x] Simulation 화면에 Plugin 이름/Version/Capability 표시 추가
+
+Sprint 7 범위에서는 실제 Browser 제어/자동 로그인/자동 클릭/자동 예약/자동 결제/Playwright·Puppeteer·Chrome Extension 등 외부 자동화 라이브러리를 구현하지 않았다.
+Interpark Plugin은 Mock으로만 구현했으며, Plugin Framework 구조 완성이 이번 Sprint의 목표다.
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- `SiteCapability`는 새 Enum(`PluginCapability` 등)을 만들지 않고 Sprint 6에서 만든 기존 타입을 그대로 확장했다. 값 목록을 PM 지시대로 Seat Selection/Queue Waiting/Captcha/Mobile/Desktop/Auto Refresh/Popup/Login Session으로 맞추면서, 기존 `MobileOnly`/`DesktopOnly`(배타적 제약 플래그)를 `Mobile`/`Desktop`(지원 여부 플래그)으로 의미를 바꿔 이름을 변경했다. 이 값을 소비하는 곳이 Interpark Adapter의 `supports()` 구현 하나뿐이어서 영향 범위가 작다고 판단했다.
+- Sprint 6의 `domain/adapter`(Site Adapter Interface, Interpark Adapter, Site Adapter Factory)는 이번 Sprint의 Plugin Interface/Interpark Plugin/Plugin Factory와 역할이 완전히 겹친다고 판단해 domain/adapter를 삭제하고 domain/plugin으로 대체했다. Execution Engine도 Plugin Factory만 호출하도록 함께 변경했다(Sprint 7 아키텍처 다이어그램에 Site Adapter가 더 이상 등장하지 않고 Plugin으로 대체된 것과 일치한다고 해석했다). 두 체계를 병행 유지하지 않기로 한 판단이라 PM 확인을 요청한다.
+- `openReservationPage()`는 `openReservation()`으로 이름을 통일했고, Execution Timeline의 `ADAPTER_CALLED` 단계도 `PLUGIN_CALLED`로 변경했다(용어 일관성).
+- Plugin 등록(설치) 시 기록하는 `version`은 Plugin 인스턴스의 `getVersion()`이 아니라 `PluginRule.defaultVersion`을 사용했다("Plugin은 Rule만 참조합니다" 지시를 등록 시점 Version 결정에도 동일하게 적용). `getVersion()`은 Plugin 구현체 자체의 버전 조회용으로 별도 유지했다(Simulation 화면 등에서 사용).
+- Plugin Registry는 "생성은 하지 않는다"는 지시에 따라 `PluginRecord`(메타데이터)만 다루고 실제 Plugin 인스턴스는 다루지 않는다. 최초 실행 시 Interpark 기본 레코드를 Seed하는 로직은 Site Account의 기존 Seed 패턴과 동일하게 구현했다.
+- 이번 Sprint 완료 조건에 Home 화면 연동이 포함되어 있지 않아 `/plugin`은 Home에서 링크로 연결하지 않았다(직접 URL로만 접근 가능). 필요하면 다음 Sprint에서 연동하겠다.
+
+다음 Sprint에서 PM 승인 후 실제 Plugin(TicketLink/YES24 등) 확장 또는 Browser 연동 단계로 진행한다.
