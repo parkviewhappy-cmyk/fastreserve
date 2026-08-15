@@ -56,11 +56,23 @@ function formatTimelineTime(value: string): string {
  * PM 지시(Sprint 7): 항목별로 Plugin 이름/Version/Capability를 함께 표시한다.
  * (Plugin 이름/Version/Capability 조회는 Execution Engine이 아닌 Plugin Manager를
  * 통해 직접 조회한다 - 정보 조회이며 실행 자체가 아니므로 Scheduler 경유 대상이 아니다.)
+ * PM 지시(Sprint 8): Timeline/Queue/Plugin/ExecutionResult를 실시간으로 확인할 수 있도록
+ * Queue 새로고침 버튼을 추가했다(Execution Queue는 예약 추가/변경 이후에도 최신 상태로
+ * 다시 계산할 수 있어야 한다).
  */
 function Simulation() {
   const { showToast } = useToast()
-  const [queue] = useState<ExecutionQueueItem[]>(() => scheduler.getExecutionQueue())
+  const [queue, setQueue] = useState<ExecutionQueueItem[]>(() =>
+    scheduler.getExecutionQueue()
+  )
   const [runs, setRuns] = useState<Record<string, ExecutionRun>>({})
+
+  /** Execution Queue를 다시 계산한다(Sprint 8: 실시간 확인을 위한 새로고침). */
+  function handleRefreshQueue() {
+    setQueue(scheduler.getExecutionQueue())
+    setRuns({})
+    showToast('Execution Queue를 새로고침했습니다.', 'info')
+  }
 
   function handleRun(item: ExecutionQueueItem) {
     const run = scheduler.simulateExecution(item)
@@ -77,11 +89,20 @@ function Simulation() {
           ← 홈으로
         </Link>
 
-        <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-          <p className="text-xs text-neutral-500">Queue 길이</p>
-          <p className="mt-1 text-xl font-semibold text-neutral-50">
-            {queue.length}
-          </p>
+        <div className="flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+          <div>
+            <p className="text-xs text-neutral-500">Queue 길이</p>
+            <p className="mt-1 text-xl font-semibold text-neutral-50">
+              {queue.length}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefreshQueue}
+            className="rounded-lg border border-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-800"
+          >
+            새로고침
+          </button>
         </div>
 
         {queue.length === 0 ? (
