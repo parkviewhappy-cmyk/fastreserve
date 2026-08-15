@@ -6,6 +6,7 @@ import SummaryCard from '@/components/common/SummaryCard'
 import { reservationManager } from '@/domain/reservation'
 import { readyEngine } from '@/domain/ready'
 import { healthCheckEngine } from '@/domain/healthCheck'
+import { scheduler } from '@/domain/scheduler'
 
 /**
  * Home 화면.
@@ -13,12 +14,18 @@ import { healthCheckEngine } from '@/domain/healthCheck'
  * Home에서 직접 통계를 계산하지 않는다. "오늘 예약"도 Ready Engine의
  * getTodayReservations()를 사용한다.
  * Sprint 5 범위: 사이트 로그인 상태 요약은 Health Check Engine의 getReport() 결과만 사용한다.
+ * Sprint 6 범위: Simulation 요약(Queue 길이/현재 실행 대상)은 Scheduler를 통해서만 조회한다.
+ * (Execution Engine을 Home에서 직접 호출하지 않는다.)
  */
 function Home() {
   const reservations = reservationManager.list()
   const dashboard = readyEngine.getDashboardSummary()
   const todayReservations = readyEngine.getTodayReservations()
   const health = healthCheckEngine.getReport()
+  const executionQueue = scheduler.getExecutionQueue()
+  const currentTarget = executionQueue[0]
+    ? reservationManager.getById(executionQueue[0].context.reservationId)
+    : undefined
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -99,6 +106,28 @@ function Home() {
             className="mt-3 block text-center text-xs text-neutral-500 hover:text-neutral-300"
           >
             사이트 관리로 이동 →
+          </Link>
+        </section>
+
+        {/* Simulation (Scheduler를 통한 Execution Queue 요약) */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-neutral-400">
+            Simulation
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryCard label="현재 Queue 길이" value={executionQueue.length} />
+            <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+              <p className="text-xs text-neutral-500">현재 실행 대상</p>
+              <p className="mt-1 truncate text-sm font-semibold text-neutral-50">
+                {currentTarget?.title ?? '없음'}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/simulation"
+            className="mt-3 block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
+          >
+            Simulation Mode 열기
           </Link>
         </section>
 

@@ -1,23 +1,34 @@
 import type { Reservation } from '@/types/reservation'
-import { ReservationStatus } from '@/types/reservation'
 import { reservationManager, ReservationManager } from '@/domain/reservation'
 import { readyEngine, ReadyEngine } from '@/domain/ready'
+import {
+  executionEngine,
+  ExecutionEngine,
+  DEFAULT_EXECUTION_RULE,
+  type ExecutionContext,
+  type ExecutionQueueItem,
+  type ExecutionResult,
+  type ExecutionRule,
+} from '@/domain/execution'
 import { getNow } from '@/utils/time'
-import type { ExecutionContext } from './types'
-import { createExecutionContext } from './executionContext.factory'
 
 /**
  * Scheduler.
- * Sprint 5 범위: 구조만 만들며 실제로 실행(자동 예매 등)하지 않는다.
- * 아래 메서드들은 명시적으로 호출해야만 동작하며, setInterval 등 자동 실행 로직을 두지 않는다.
- * 실제 주기 실행/자동화는 Sprint 6에서 구현한다.
+ * Reservation Manager -> Ready Engine -> Scheduler -> Execution Engine -> Site Adapter
+ * 로 이어지는 파이프라인에서, Scheduler는 Reservation 조회 + Ready 판단까지만 담당하고
+ * 실제 Execution Queue 생성/실행은 Execution Engine에 위임한다.
  *
- * Reservation Manager / Ready Engine은 수정하지 않고 그대로 사용한다.
+ * PM 지시(Sprint 6): UI는 Execution Engine을 직접 호출하지 않는다. Simulation 화면 등
+ * UI는 Scheduler(getExecutionQueue/simulateExecution)를 통해서만 Execution Engine에 접근한다.
+ *
+ * 이 클래스에는 setInterval 등 자동 실행 로직을 두지 않는다. 모든 메서드는 명시적으로
+ * 호출해야만 동작한다(Simulation Mode 목적).
  */
 export class Scheduler {
   constructor(
     private readonly manager: ReservationManager = reservationManager,
-    private readonly engine: ReadyEngine = readyEngine
+    private readonly engine: ReadyEngine = readyEngine,
+    private readonly execution: ExecutionEngine = executionEngine
   ) {}
 
   /** 현재시간 확인 */
@@ -36,25 +47,23 @@ export class Scheduler {
   }
 
   /**
-   * Execution Queue 생성.
-   * Ready 또는 Running 상태(지금 처리해야 하는) 예약들을 openTime 오름차순으로 정렬해
-   * ExecutionContext 큐를 만든다. 실제 실행(Execution Engine)은 아직 구현하지 않는다.
+   * Execution Queue 조회.
+   * Execution Engine에 위임해 Priority(+ Site Priority) 정렬이 반영된 Queue를 반환한다.
+   * UI는 Execution Engine을 직접 호출하지 않고 이 메서드를 통해서만 Queue를 조회한다.
    */
-  buildExecutionQueue(now: Date = this.getCurrentTime()): ExecutionContext[] {
-    const reservations = this.scanReservations()
-    const actionable = reservations.filter((reservation) => {
-      const status = this.engine.getReservationStatus(reservation, now)
-      return (
-        status === ReservationStatus.Ready ||
-        status === ReservationStatus.Running
-      )
-    })
-    const sorted = [...actionable].sort((a, b) =>
-      a.openTime.localeCompare(b.openTime)
-    )
-    return sorted.map((reservation, index) =>
-      createExecutionContext(reservation, index + 1)
-    )
+  getExecutionQueue(
+    now: Date = this.getCurrentTime(),
+    rule: ExecutionRule = DEFAULT_EXECUTION_RULE
+  ): ExecutionQueueItem[] {
+    return this.execution.buildQueue(this.scanReservations(), now, rule)
+  }
+
+  /**
+   * 단일 ExecutionContext를 실행(Simulation)한다.
+   * 실제 예약을 실행하지 않으며, Mock Site Adapter의 결과를 그대로 반환한다.
+   */
+  simulateExecution(context: ExecutionContext): ExecutionResult {
+    return this.execution.execute(context)
   }
 }
 
