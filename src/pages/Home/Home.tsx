@@ -2,40 +2,43 @@ import { Link } from 'react-router-dom'
 import Header from '@/components/layout/Header'
 import BottomNavigation from '@/components/layout/BottomNavigation'
 import ReservationCard from '@/components/common/ReservationCard'
+import SummaryCard from '@/components/common/SummaryCard'
 import { reservationManager } from '@/domain/reservation'
-import { ReservationStatus } from '@/types/reservation'
-
-function getTodayDateString(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
+import { readyEngine } from '@/domain/ready'
 
 /**
  * Home 화면.
- * Sprint 3 범위: ReservationManager(LocalStorage 기반)를 통해 예약 목록을 조회하여
- * 예약 개수 / 오늘 예약 / 예약 준비중 개수 / Reservation Card 목록을 표시한다.
+ * Sprint 4 범위: 상단 Dashboard는 Ready Engine의 getDashboardSummary() 결과만 사용하며
+ * Home에서 직접 통계를 계산하지 않는다. "오늘 예약"도 Ready Engine의
+ * getTodayReservations()를 사용한다.
  */
 function Home() {
   const reservations = reservationManager.list()
-  const todayReservations = reservations.filter(
-    (reservation) => reservation.eventDate === getTodayDateString()
-  )
-  const waitingCount = reservations.filter(
-    (reservation) => reservation.status === ReservationStatus.Waiting
-  ).length
+  const dashboard = readyEngine.getDashboardSummary()
+  const todayReservations = readyEngine.getTodayReservations()
 
   return (
     <div className="flex min-h-screen flex-col">
       <Header title="FastReserve" />
 
       <main className="flex-1 space-y-6 px-4 py-6">
-        {/* 요약 정보 */}
-        <section className="grid grid-cols-2 gap-3">
-          <SummaryCard label="예약 개수" value={reservations.length} />
-          <SummaryCard label="예약 준비중" value={waitingCount} />
+        {/* Dashboard (Ready Engine 결과) */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-neutral-400">
+            Dashboard
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryCard label="총 예약" value={dashboard.totalReservation} />
+            <SummaryCard label="오늘 예약" value={dashboard.todayReservation} />
+            <SummaryCard
+              label="예약 준비중"
+              value={dashboard.waitingReservation}
+            />
+            <SummaryCard label="준비중" value={dashboard.preparingReservation} />
+            <SummaryCard label="준비 완료" value={dashboard.readyReservation} />
+            <SummaryCard label="완료" value={dashboard.completedReservation} />
+            <SummaryCard label="실패" value={dashboard.failedReservation} />
+          </div>
         </section>
 
         {/* 오늘 예약 */}
@@ -100,15 +103,6 @@ function Home() {
       </main>
 
       <BottomNavigation />
-    </div>
-  )
-}
-
-function SummaryCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-xl border border-neutral-800 bg-neutral-900 p-4">
-      <p className="text-xs text-neutral-500">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-neutral-50">{value}</p>
     </div>
   )
 }
