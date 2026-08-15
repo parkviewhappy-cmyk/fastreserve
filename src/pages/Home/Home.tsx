@@ -7,6 +7,10 @@ import { reservationManager } from '@/domain/reservation'
 import { readyEngine } from '@/domain/ready'
 import { healthCheckEngine } from '@/domain/healthCheck'
 import { scheduler } from '@/domain/scheduler'
+import { siteAccountManager } from '@/domain/siteAccount'
+import { SessionStatus } from '@/domain/session'
+import { pluginManager } from '@/domain/pluginManager'
+import { computeReadinessScore, getReadinessLabel } from '@/pages/ReadyScreen/readinessScore'
 
 /**
  * Home 화면.
@@ -23,6 +27,9 @@ import { scheduler } from '@/domain/scheduler'
  * "사이트 계정 관리"와 "플러그인 관리"는 서로 다른 화면이므로 라벨을 구분했다
  * (PM Review 반영: Sprint 7 검토 시 라벨 중복을 특이사항으로 보고했고, 이번 Sprint 지시에
  * 쓰인 명칭을 그대로 반영해 구분했다).
+ * Sprint 10 범위(Reservation Assistant 전환): "예매 준비 점수"를 가장 가까운 예약
+ * (readyTarget) 기준으로 표시한다. 점수 계산은 Ready Screen과 동일한 공유 유틸
+ * (readinessScore.ts)을 사용해 로직 중복을 만들지 않는다.
  */
 function Home() {
   const reservations = reservationManager.list()
@@ -35,6 +42,18 @@ function Home() {
     : undefined
   const upcomingReservations = readyEngine.getUpcomingReservations()
   const readyTarget = currentTarget ?? todayReservations[0] ?? upcomingReservations[0]
+
+  const readyTargetAccount = readyTarget
+    ? siteAccountManager.list().find((candidate) => candidate.site === readyTarget.site)
+    : undefined
+  const readyScore = readyTarget
+    ? computeReadinessScore({
+        loginReady: readyTargetAccount?.sessionStatus === SessionStatus.Ready,
+        pluginHealthy: pluginManager.isHealthy(readyTarget.site),
+        internetOnline: typeof navigator === 'undefined' ? true : navigator.onLine,
+        urlRegistered: Boolean(readyTarget.url),
+      })
+    : undefined
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -151,8 +170,18 @@ function Home() {
         </section>
 
         {/* 예약 준비 (가장 가까운 예약으로 바로 이동) */}
-        {readyTarget && (
+        {readyTarget && readyScore && (
           <section>
+            <div className="mb-3 flex items-center justify-between rounded-xl border border-neutral-800 bg-neutral-900 p-4">
+              <div>
+                <p className="text-xs text-neutral-500">예매 준비 점수</p>
+                <p className="mt-1 text-sm text-neutral-300">{readyTarget.title}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-bold text-primary-500">{readyScore.score}점</p>
+                <p className="text-xs text-neutral-500">{getReadinessLabel(readyScore.score)}</p>
+              </div>
+            </div>
             <Link
               to={`/ready/${readyTarget.id}`}
               className="block w-full rounded-xl border border-neutral-800 py-3 text-center text-sm font-medium text-neutral-300 transition-colors hover:bg-neutral-900"
