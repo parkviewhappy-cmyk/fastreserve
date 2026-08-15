@@ -4,19 +4,16 @@ import Header from '@/components/layout/Header'
 import Dialog from '@/components/common/Dialog'
 import FormField from '@/components/common/FormField'
 import { useToast } from '@/hooks/useToast'
-import {
-  siteAccountManager,
-  AccountSiteType,
-  type SiteAccount,
-} from '@/domain/siteAccount'
+import { SiteType } from '@/types/reservation'
+import { siteAccountManager, type SiteAccount } from '@/domain/siteAccount'
 import { sessionManager, getSessionStatusLabel, SessionStatus } from '@/domain/session'
 
-const SITE_LABELS: Record<AccountSiteType, string> = {
-  [AccountSiteType.Interpark]: 'Interpark',
-  [AccountSiteType.TicketLink]: 'TicketLink',
-  [AccountSiteType.Yes24]: 'YES24',
-  [AccountSiteType.JinAir]: 'JinAir',
-  [AccountSiteType.Custom]: '기타',
+const SITE_LABELS: Record<SiteType, string> = {
+  [SiteType.Interpark]: 'Interpark',
+  [SiteType.TicketLink]: 'TicketLink',
+  [SiteType.Yes24]: 'YES24',
+  [SiteType.JinAir]: 'JinAir',
+  [SiteType.Custom]: '기타',
 }
 
 const inputClass =
@@ -37,7 +34,7 @@ function SiteSettings() {
   const { showToast } = useToast()
   const [accounts, setAccounts] = useState<SiteAccount[]>(siteAccountManager.list())
   const [isAdding, setIsAdding] = useState(false)
-  const [newSite, setNewSite] = useState<AccountSiteType>(AccountSiteType.Custom)
+  const [newSite, setNewSite] = useState<SiteType>(SiteType.Custom)
   const [newDisplayName, setNewDisplayName] = useState('')
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
@@ -46,7 +43,7 @@ function SiteSettings() {
   }
 
   function handleCheckLogin(account: SiteAccount) {
-    const session = sessionManager.checkSession(account.id)
+    const session = sessionManager.checkSession(account.id, account.site)
     siteAccountManager.updateLoginState(account.id, {
       isLoggedIn: session.status === SessionStatus.Ready,
       sessionStatus: session.status,
@@ -56,7 +53,7 @@ function SiteSettings() {
     showToast(
       session.status === SessionStatus.Ready
         ? '로그인 상태가 확인되었습니다.'
-        : '로그인이 필요합니다.',
+        : `세션 상태: ${getSessionStatusLabel(session.status)}`,
       session.status === SessionStatus.Ready ? 'success' : 'info'
     )
   }
@@ -103,66 +100,72 @@ function SiteSettings() {
         </Link>
 
         <div className="space-y-3">
-          {accounts.map((account) => (
-            <div
-              key={account.id}
-              className="rounded-xl border border-neutral-800 bg-neutral-900 p-4"
-            >
-              <div className="flex items-start justify-between">
-                <h3 className="text-sm font-semibold text-neutral-50">
-                  {SITE_LABELS[account.site]}
-                  {account.displayName !== SITE_LABELS[account.site] && (
-                    <span className="ml-1 text-xs font-normal text-neutral-500">
-                      ({account.displayName})
+          {accounts
+            .slice()
+            .sort((a, b) => a.priority - b.priority)
+            .map((account) => (
+              <div
+                key={account.id}
+                className="rounded-xl border border-neutral-800 bg-neutral-900 p-4"
+              >
+                <div className="flex items-start justify-between">
+                  <h3 className="text-sm font-semibold text-neutral-50">
+                    {SITE_LABELS[account.site]}
+                    {account.displayName !== SITE_LABELS[account.site] && (
+                      <span className="ml-1 text-xs font-normal text-neutral-500">
+                        ({account.displayName})
+                      </span>
+                    )}
+                    <span className="ml-2 text-xs font-normal text-neutral-600">
+                      우선순위 {account.priority}
                     </span>
-                  )}
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => handleToggleEnabled(account)}
-                  className={
-                    account.enabled
-                      ? 'rounded-full bg-primary-600/20 px-2 py-1 text-xs text-primary-500'
-                      : 'rounded-full bg-neutral-800 px-2 py-1 text-xs text-neutral-500'
-                  }
-                >
-                  {account.enabled ? '활성' : '비활성'}
-                </button>
-              </div>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleEnabled(account)}
+                    className={
+                      account.enabled
+                        ? 'rounded-full bg-primary-600/20 px-2 py-1 text-xs text-primary-500'
+                        : 'rounded-full bg-neutral-800 px-2 py-1 text-xs text-neutral-500'
+                    }
+                  >
+                    {account.enabled ? '활성' : '비활성'}
+                  </button>
+                </div>
 
-              <dl className="mt-3 space-y-1 text-xs text-neutral-400">
-                <div className="flex justify-between">
-                  <dt>로그인 상태</dt>
-                  <dd>{account.isLoggedIn ? '로그인됨' : '로그인 필요'}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>세션 상태</dt>
-                  <dd>{getSessionStatusLabel(account.sessionStatus)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt>마지막 확인</dt>
-                  <dd>{formatLastChecked(account.lastChecked)}</dd>
-                </div>
-              </dl>
+                <dl className="mt-3 space-y-1 text-xs text-neutral-400">
+                  <div className="flex justify-between">
+                    <dt>로그인 상태</dt>
+                    <dd>{account.isLoggedIn ? '로그인됨' : '로그인 필요'}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>세션 상태</dt>
+                    <dd>{getSessionStatusLabel(account.sessionStatus)}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt>마지막 확인</dt>
+                    <dd>{formatLastChecked(account.lastChecked)}</dd>
+                  </div>
+                </dl>
 
-              <div className="mt-3 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleCheckLogin(account)}
-                  className="flex-1 rounded-lg bg-primary-600 py-2 text-xs font-semibold text-white hover:bg-primary-700"
-                >
-                  로그인 확인
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTargetId(account.id)}
-                  className="rounded-lg border border-red-900 px-3 py-2 text-xs text-red-400 hover:bg-red-950/40"
-                >
-                  삭제
-                </button>
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleCheckLogin(account)}
+                    className="flex-1 rounded-lg bg-primary-600 py-2 text-xs font-semibold text-white hover:bg-primary-700"
+                  >
+                    로그인 확인
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTargetId(account.id)}
+                    className="rounded-lg border border-red-900 px-3 py-2 text-xs text-red-400 hover:bg-red-950/40"
+                  >
+                    삭제
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
 
           {accounts.length === 0 && (
             <div className="rounded-xl border border-dashed border-neutral-800 p-6 text-center text-sm text-neutral-500">
@@ -176,10 +179,10 @@ function SiteSettings() {
             <FormField label="사이트 종류">
               <select
                 value={newSite}
-                onChange={(e) => setNewSite(e.target.value as AccountSiteType)}
+                onChange={(e) => setNewSite(e.target.value as SiteType)}
                 className={inputClass}
               >
-                {Object.values(AccountSiteType).map((site) => (
+                {Object.values(SiteType).map((site) => (
                   <option key={site} value={site}>
                     {SITE_LABELS[site]}
                   </option>
