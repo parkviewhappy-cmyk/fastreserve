@@ -55,13 +55,23 @@ fastreserve/
 │   │   │   └── types.ts            # DashboardSummary
 │   │   ├── siteAccount/           # Site Account 도메인 (Sprint 5)
 │   │   ├── session/               # Session 도메인 (Sprint 5, LocalStorage Mock)
-│   │   ├── scheduler/             # Scheduler 구조 + ExecutionContext (Sprint 5, 실행 없음)
-│   │   └── healthCheck/           # Health Check 도메인 (Sprint 5)
+│   │   ├── scheduler/             # Reservation Scan/Ready 판단 + Execution Engine 위임 (Sprint 6)
+│   │   ├── healthCheck/           # Health Check 도메인 (Sprint 5)
+│   │   ├── execution/              # Execution Engine 도메인 (Sprint 6)
+│   │   │   ├── engine/              # Execution Engine (Queue 생성/Priority/Adapter 선택/실행)
+│   │   │   ├── rule/                # ExecutionRule (Magic Number 제거)
+│   │   │   ├── factory/             # ExecutionContext Factory
+│   │   │   └── types.ts             # ExecutionContext / ExecutionResult / ExecutionQueueItem
+│   │   └── adapter/                # Site Adapter 도메인 (Sprint 6)
+│   │       ├── siteAdapter.ts        # Site Adapter Interface
+│   │       ├── interparkAdapter.ts   # Interpark Mock Adapter
+│   │       └── adapter.registry.ts   # SiteType -> Adapter 조회
 │   ├── pages/
 │   │   ├── Home/                  # Home 화면 (Dashboard 포함)
 │   │   ├── AddReservation/        # 예약 등록 화면
 │   │   ├── ReservationDetail/     # 예약 상세/수정 화면
-│   │   └── SiteSettings/          # 사이트 관리 화면 (/site, Sprint 5)
+│   │   ├── SiteSettings/          # 사이트 관리 화면 (/site, Sprint 5)
+│   │   └── Simulation/            # Simulation Mode 화면 (/simulation, Sprint 6)
 │   ├── hooks/
 │   │   └── useToast.tsx           # Toast 전역 상태
 │   ├── services/
@@ -145,3 +155,25 @@ FastReserve는 아이디와 비밀번호를 저장하지 않으며, 사이트별
 - JinAir는 기본 Seed에서 제외
 
 다음 Sprint(Sprint 6)에서 Site Adapter, 실제 Session/Scheduler 연동, Execution Engine을 구현한다.
+
+### Sprint 6 (완료)
+
+- [x] Execution 도메인 구축 (`src/domain/execution/`) — ExecutionContext(eventDate/eventTime 추가), ExecutionResult(SUCCESS/FAILED/WAITING/RUNNING/SKIPPED), ExecutionQueueItem
+- [x] ExecutionRule 객체로 Queue 전략 관리 (`queueStrategy`, `sitePriorityEnabled`, `retryCount`, `retryInterval` — 기본값만 정의, 실제 Retry는 미구현)
+- [x] Site Adapter Interface (`src/domain/adapter/siteAdapter.ts`) — prepare/checkSession/openReservationPage/execute/healthCheck/cancel
+- [x] Interpark Mock Adapter — Session 확인 / Reservation URL 확인 / ExecutionResult 반환 (실제 Browser 제어 없음)
+- [x] Execution Engine — Execution Queue 생성(Priority 정렬 + 동일 시간 Site Priority tie-break + Running 상태 유지), Site Adapter 선택, ExecutionContext 전달, 실행 결과 반환. Reservation은 수정하지 않는다.
+- [x] Scheduler가 Execution Engine에 위임(`getExecutionQueue`/`simulateExecution`) — UI는 Execution Engine을 직접 호출하지 않고 Scheduler를 통해서만 접근한다.
+- [x] Simulation Mode 화면 (`/simulation`) — Execution Queue, Priority, Reservation → Ready → Queue → Running → Completed 단계 표시, 항목별 Mock 실행 버튼
+- [x] Home 화면에 Simulation 요약(현재 Queue 길이, 현재 실행 대상) + Simulation Mode 진입 버튼 추가
+
+Sprint 6 범위에서는 인터파크 자동 로그인/아이디·비밀번호 저장/Browser 자동 제어/자동 예약/자동 결제/API 연동/Playwright·Puppeteer·Chrome Extension 등 외부 자동화 라이브러리를 구현하지 않았다.
+Interpark Adapter는 Mock으로만 구현했으며, 실제 예약은 실행하지 않는다(Simulation Mode).
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- `ExecutionResult`는 `ReservationStatus`와 개념이 달라(실행 시도 1건의 결과 vs 예약의 지속 상태) 별도 Enum으로 유지했다. Sprint 4/5에서 지양했던 "병렬 Enum"과는 다른 케이스로 판단했다.
+- Sprint 5의 `domain/scheduler/types.ts`에 있던 `ExecutionContext`/`createExecutionContext`는 `domain/execution/`으로 이동하고 `eventDate`/`eventTime` 필드를 추가했다(Sprint 6 스펙에서 재정의된 필드 목록을 그대로 반영). Scheduler는 이 타입을 import해서 사용한다.
+- Interpark Mock Adapter의 `execute()`는 `openTime` 이전이면 WAITING, 이후면 SUCCESS, URL이 없으면 SKIPPED를 반환하도록 단순화했다. FAILED/RUNNING은 이번 Mock에서는 발생시키지 않는다(실제 Adapter 구현 시 사용 예정).
+- Execution Queue의 Site Priority는 Sprint 5에서 추가한 `SiteAccount.priority`를 그대로 사용한다.
+
+다음 Sprint에서 PM 승인 후 실제 Browser 연동 단계로 진행한다.
