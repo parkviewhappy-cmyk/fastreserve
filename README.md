@@ -208,7 +208,7 @@ Interpark Adapter는 Mock으로만 구현했으며, 실제 예약은 실행하�
 - [x] Plugin Factory — `createPlugin(site)`로 Interpark Plugin 제공 (TicketLink/YES24는 아직 미구현, undefined 반환)
 - [x] Plugin Registry(`src/domain/pluginRegistry/`) — Plugin 목록(메타데이터, PluginRecord)만 LocalStorage로 관리. Plugin 인스턴스 생성은 하지 않는다. Interpark 기본 Seed(설치+활성화)
 - [x] Plugin Manager(`src/domain/pluginManager/`) — 등록/제거/조회/활성화/비활성화/Version 확인/Capability 조회
-- [x] Execution Engine이 Plugin Factory만 호출하도록 전환 (`domain/adapter`의 Site Adapter Interface/Interpark Adapter/Site Adapter Factory를 Plugin 개념으로 대체하고 기존 `domain/adapter`는 삭제)
+- [x] Execution Engine이 Plugin Factory만 호출하도록 구성 (Execution Engine -> Plugin -> Adapter 구조)
 - [x] Plugin Settings 화면 (`/plugin`) — Interpark/TicketLink/YES24 목록, 설치된 Plugin은 Version/Enabled/Capabilities 표시, 설치/활성화/비활성화/삭제
 - [x] Simulation 화면에 Plugin 이름/Version/Capability 표시 추가
 
@@ -216,11 +216,17 @@ Sprint 7 범위에서는 실제 Browser 제어/자동 로그인/자동 클릭/�
 Interpark Plugin은 Mock으로만 구현했으며, Plugin Framework 구조 완성이 이번 Sprint의 목표다.
 
 **설계 결정 (특이사항, PM 확인 요청)**
-- `SiteCapability`는 새 Enum(`PluginCapability` 등)을 만들지 않고 Sprint 6에서 만든 기존 타입을 그대로 확장했다. 값 목록을 PM 지시대로 Seat Selection/Queue Waiting/Captcha/Mobile/Desktop/Auto Refresh/Popup/Login Session으로 맞추면서, 기존 `MobileOnly`/`DesktopOnly`(배타적 제약 플래그)를 `Mobile`/`Desktop`(지원 여부 플래그)으로 의미를 바꿔 이름을 변경했다. 이 값을 소비하는 곳이 Interpark Adapter의 `supports()` 구현 하나뿐이어서 영향 범위가 작다고 판단했다.
-- Sprint 6의 `domain/adapter`(Site Adapter Interface, Interpark Adapter, Site Adapter Factory)는 이번 Sprint의 Plugin Interface/Interpark Plugin/Plugin Factory와 역할이 완전히 겹친다고 판단해 domain/adapter를 삭제하고 domain/plugin으로 대체했다. Execution Engine도 Plugin Factory만 호출하도록 함께 변경했다(Sprint 7 아키텍처 다이어그램에 Site Adapter가 더 이상 등장하지 않고 Plugin으로 대체된 것과 일치한다고 해석했다). 두 체계를 병행 유지하지 않기로 한 판단이라 PM 확인을 요청한다.
+- `SiteCapability`는 새 Enum(`PluginCapability` 등)을 만들지 않고 Sprint 6에서 만든 기존 타입을 그대로 확장했다. 값 목록을 PM 지시대로 Seat Selection/Queue Waiting/Captcha/Mobile/Desktop/Auto Refresh/Popup/Login Session으로 맞추면서, 기존 `MobileOnly`/`DesktopOnly`(배타적 제약 플래그)를 `Mobile`/`Desktop`(지원 여부 플래그)으로 의미를 바꿔 이름을 변경했다.
 - `openReservationPage()`는 `openReservation()`으로 이름을 통일했고, Execution Timeline의 `ADAPTER_CALLED` 단계도 `PLUGIN_CALLED`로 변경했다(용어 일관성).
-- Plugin 등록(설치) 시 기록하는 `version`은 Plugin 인스턴스의 `getVersion()`이 아니라 `PluginRule.defaultVersion`을 사용했다("Plugin은 Rule만 참조합니다" 지시를 등록 시점 Version 결정에도 동일하게 적용). `getVersion()`은 Plugin 구현체 자체의 버전 조회용으로 별도 유지했다(Simulation 화면 등에서 사용).
 - Plugin Registry는 "생성은 하지 않는다"는 지시에 따라 `PluginRecord`(메타데이터)만 다루고 실제 Plugin 인스턴스는 다루지 않는다. 최초 실행 시 Interpark 기본 레코드를 Seed하는 로직은 Site Account의 기존 Seed 패턴과 동일하게 구현했다.
-- 이번 Sprint 완료 조건에 Home 화면 연동이 포함되어 있지 않아 `/plugin`은 Home에서 링크로 연결하지 않았다(직접 URL로만 접근 가능). 필요하면 다음 Sprint에서 연동하겠다.
+
+**PM Review 반영 (Sprint 7 Review)**
+- `domain/adapter`를 삭제하지 않고 복원했다. Plugin과 Adapter의 책임을 분리했다: Plugin은 Version/Capability/Enable 여부를 관리하고, Adapter(Session/Reservation URL/Site 연결)는 그대로 `domain/adapter`에 둔다. Execution Engine -> Plugin -> Adapter 구조를 유지한다 — Interpark Plugin이 내부적으로 Interpark Adapter를 감싸(Site Adapter Factory에서 얻음) prepare/checkSession/openReservation/execute/healthCheck/cancel을 위임하고, 그 위에 Version/Capability/Enable 정보를 더한다. Adapter의 `supports()`/`SiteCapability`는 제거했다(Capability는 Plugin의 책임).
+- Plugin Registry에 저장하는 `version`을 `PluginRule.defaultVersion`이 아니라 `Plugin.getVersion()`으로 변경했다(Rule은 정책만, Version은 Plugin이 관리). `autoEnable` 등 정책값은 계속 PluginRule을 참조한다.
+- Home 화면에 "사이트 관리" 버튼을 추가해 `/plugin`으로 이동할 수 있게 했다.
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- Home 화면에는 기존 Site Account 화면(`/site`)으로 가는 "사이트 관리로 이동 →" 링크가 이미 있었다. 이번에 추가한 "사이트 관리" 버튼은 `/plugin`(Plugin 관리)으로 이동한다. 두 화면이 서로 다른 개념(Site Account vs Plugin)인데 라벨이 겹쳐 사용자 혼동 가능성이 있다고 판단했다. 지시받은 라벨("사이트 관리")을 그대로 사용했으니, 명칭을 구분할지(예: 기존 링크를 "계정 관리로 이동"으로 변경) PM 확인 부탁드린다.
+- `Plugin.isEnabled()`는 Registry에 저장된 활성화 상태를 조회하지 않고 Interpark Plugin(Mock)이 항상 사용 가능하다는 의미로 `true`를 고정 반환하도록 구현했다. Registry -> Plugin 방향의 의존을 추가하면 Plugin Registry(`domain/pluginRegistry`)가 이미 Plugin의 Version 타입을 참조하고 있어 양방향 결합이 생기기 때문에, "설치/활성화 여부"(사용자가 토글하는 영속 상태)는 계속 Plugin Registry/Plugin Manager가 관리하고, `isEnabled()`는 "이 Plugin 구현체가 지금 정상 동작 가능한지"(healthCheck에 가까운 개념)로 구분했다. 이 구분이 PM 의도와 맞는지 확인 부탁드린다.
 
 다음 Sprint에서 PM 승인 후 실제 Plugin(TicketLink/YES24 등) 확장 또는 Browser 연동 단계로 진행한다.
