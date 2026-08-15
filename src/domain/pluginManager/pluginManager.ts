@@ -84,6 +84,15 @@ export class PluginManager {
   getCapabilities(site: SiteType): SiteCapability[] {
     return this.factory.createPlugin(site)?.getCapabilities() ?? []
   }
+
+  /**
+   * Plugin이 현재 사용 가능한 상태인지 확인한다(Plugin.isEnabled()).
+   * Sprint 8 범위: Plugin Settings 화면에 "사용가능 여부"로 표시한다.
+   * Factory가 지원하지 않는 사이트(TicketLink/YES24 등 미구현)면 false를 반환한다.
+   */
+  isAvailable(site: SiteType): boolean {
+    return this.factory.createPlugin(site)?.isEnabled() ?? false
+  }
 }
 
 /** 기본 Plugin Manager 인스턴스. */
