@@ -1,27 +1,16 @@
+import type { SiteType } from '@/types/reservation'
 import type { SessionStatus } from '@/domain/session'
-
-/**
- * 사이트 계정 관리용 사이트 종류.
- * 참고: Reservation 도메인의 SiteType(types/reservation.ts, 현재 Interpark만 지원)과는
- * 별개의 목록이다. Site Account는 "관리 대상 사이트 카탈로그"이고, Reservation.site는
- * "실제 예약이 걸려 있는 사이트"로 의미가 다르며, 이번 Sprint에서 Reservation 쪽은
- * 변경하지 않는다. 이름 충돌을 피하기 위해 AccountSiteType으로 명명했다. (PM 확인 필요)
- */
-export enum AccountSiteType {
-  Interpark = 'INTERPARK',
-  TicketLink = 'TICKETLINK',
-  Yes24 = 'YES24',
-  JinAir = 'JINAIR',
-  Custom = 'CUSTOM',
-}
 
 /**
  * 사이트 계정 정보.
  * 아이디/비밀번호는 절대 저장하지 않으며, 로그인 Session "상태"만 관리한다.
+ *
+ * PM Review 반영(Sprint 5): 별도의 AccountSiteType을 두지 않고 Reservation과 동일한
+ * SiteType(types/reservation.ts)을 그대로 사용한다.
  */
 export interface SiteAccount {
   id: string
-  site: AccountSiteType
+  site: SiteType
   displayName: string
   enabled: boolean
   isLoggedIn: boolean
@@ -30,5 +19,7 @@ export interface SiteAccount {
   lastChecked: string | null
   /** 마지막으로 로그인에 성공한 시각 (ISO, Local Time). 없으면 null. */
   lastLogin: string | null
+  /** 실행 우선순위. 낮을수록 우선순위가 높다. Execution Queue에서 향후 사용한다. */
+  priority: number
   memo?: string
 }
