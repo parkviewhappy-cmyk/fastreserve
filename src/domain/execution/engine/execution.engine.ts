@@ -5,9 +5,17 @@ import {
   siteAccountManager,
   SiteAccountManager,
 } from '@/domain/siteAccount'
-import { getSiteAdapter, type SiteAdapter } from '@/domain/adapter'
+import {
+  siteAdapterFactory,
+  SiteAdapterFactory,
+  type SiteAdapter,
+} from '@/domain/adapter'
 import { getNow } from '@/utils/time'
-import type { ExecutionContext, ExecutionQueueItem } from '../types'
+import type {
+  ExecutionQueueItem,
+  ExecutionRun,
+  ExecutionTimelineEntry,
+} from '../types'
 import { ExecutionResult } from '../types'
 import { DEFAULT_EXECUTION_RULE, type ExecutionRule } from '../rule/executionRule'
 import { createExecutionContext } from '../factory/executionContext.factory'
@@ -21,6 +29,8 @@ import { createExecutionContext } from '../factory/executionContext.factory'
  *
  * 원칙:
  * - 어떤 사이트인지 알지 못한다. Site Adapter Interface를 통해서만 사이트와 상호작용한다.
+ * - Site Adapter 선택은 Site Adapter Factory(SiteAdapterFactory)에만 위임한다.
+ *   구체 Adapter 클래스나 등록 방식은 이 Engine에서 알지 못한다(PM Review 반영).
  * - Business Logic(Queue 정렬, Priority 계산, Adapter 선택)은 이 Engine에만 존재한다.
  * - Reservation Manager/Ready Engine/Site Account Manager는 그대로 사용하며 수정하지 않는다.
  * - Queue를 만드는 과정에서 Reservation을 수정하지 않는다(읽기 전용).
@@ -29,12 +39,12 @@ export class ExecutionEngine {
   constructor(
     private readonly engine: ReadyEngine = readyEngine,
     private readonly accountManager: SiteAccountManager = siteAccountManager,
-    private readonly adapterResolver: (site: SiteType) => SiteAdapter | undefined = getSiteAdapter
+    private readonly adapterFactory: SiteAdapterFactory = siteAdapterFactory
   ) {}
 
-  /** SiteType에 해당하는 Site Adapter를 선택한다. */
+  /** SiteType에 해당하는 Site Adapter를 Factory를 통해 선택한다. */
   selectAdapter(site: SiteType): SiteAdapter | undefined {
-    return this.adapterResolver(site)
+    return this.adapterFactory.getAdapter(site)
   }
 
   /** SiteAccount.priority를 조회한다. 등록되지 않은 사이트는 최저 우선순위로 취급한다. */
@@ -91,30 +101,46 @@ export class ExecutionEngine {
       return 0
     })
 
+    const queuedAt = now.toISOString()
+
     return sorted.map(({ reservation, status }, index) => ({
       context: createExecutionContext(reservation, index + 1),
       status,
+      queuedAt,
     }))
   }
 
   /**
-   * ExecutionContext를 Site Adapter에 전달해 실행한다(Simulation).
-   * 실제 예약을 실행하지 않으며, Mock Adapter의 결과를 그대로 반환한다.
+   * Execution Queue 항목을 Site Adapter에 전달해 실행한다(Simulation).
+   * 실제 예약을 실행하지 않으며, Mock Adapter의 결과와 함께 Execution Timeline
+   * (Queue 생성 -> Ready -> Execution Start -> Adapter 호출 -> Completed)을 반환한다.
    */
-  execute(context: ExecutionContext): ExecutionResult {
-    const adapter = this.selectAdapter(context.site)
+  execute(item: ExecutionQueueItem): ExecutionRun {
+    const timeline: ExecutionTimelineEntry[] = [
+      { step: 'QUEUED', at: item.queuedAt },
+      { step: 'READY', at: item.queuedAt },
+    ]
+
+    const adapter = this.selectAdapter(item.context.site)
     if (!adapter) {
-      return ExecutionResult.Skipped
+      timeline.push({ step: 'COMPLETED', at: getNow().toISOString() })
+      return { result: ExecutionResult.Skipped, timeline }
     }
 
-    adapter.prepare(context)
-    const sessionReady = adapter.checkSession(context)
+    timeline.push({ step: 'EXECUTION_START', at: getNow().toISOString() })
+    adapter.prepare(item.context)
+    const sessionReady = adapter.checkSession(item.context)
     if (!sessionReady) {
-      return ExecutionResult.Waiting
+      timeline.push({ step: 'COMPLETED', at: getNow().toISOString() })
+      return { result: ExecutionResult.Waiting, timeline }
     }
 
-    adapter.openReservationPage(context)
-    return adapter.execute(context)
+    timeline.push({ step: 'ADAPTER_CALLED', at: getNow().toISOString() })
+    adapter.openReservationPage(item.context)
+    const result = adapter.execute(item.context)
+    timeline.push({ step: 'COMPLETED', at: getNow().toISOString() })
+
+    return { result, timeline }
   }
 }
 

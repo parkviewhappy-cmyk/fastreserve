@@ -3,13 +3,22 @@ import { ExecutionResult } from '@/domain/execution/types'
 import type { ExecutionContext } from '@/domain/execution/types'
 import { parseLocalDateTime, getNow } from '@/utils/time'
 import type { SiteAdapter } from './siteAdapter'
+import { SiteCapability } from './types'
+
+/** Interpark가 실제로 지원하는 기능. Mock이지만 실제 사이트 특성을 반영한 값이다. */
+const SUPPORTED_CAPABILITIES: ReadonlySet<SiteCapability> = new Set([
+  SiteCapability.SeatSelection,
+  SiteCapability.QueueWaiting,
+  SiteCapability.Captcha,
+])
 
 /**
  * Interpark Mock Adapter.
  * 첫 번째 Site Adapter 구현체. 실제 Browser 제어/로그인/결제를 전혀 수행하지 않는
  * Mock 구현이며, Simulation Mode에서만 사용한다.
  *
- * 기능 범위(PM 지시, Sprint 6): Session 확인 / Reservation URL 확인 / ExecutionResult 반환.
+ * 기능 범위(PM 지시, Sprint 6): Session 확인 / Reservation URL 확인 / ExecutionResult 반환 /
+ * Site Capability 지원 여부 확인(supports).
  */
 export class InterparkAdapter implements SiteAdapter {
   readonly site = SiteType.Interpark
@@ -46,5 +55,10 @@ export class InterparkAdapter implements SiteAdapter {
 
   cancel(): void {
     // Mock: 취소할 실제 실행이 없다.
+  }
+
+  /** Interpark가 해당 기능을 지원하는지 확인한다. */
+  supports(feature: SiteCapability): boolean {
+    return SUPPORTED_CAPABILITIES.has(feature)
   }
 }

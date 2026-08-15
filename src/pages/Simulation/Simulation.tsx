@@ -4,8 +4,12 @@ import Header from '@/components/layout/Header'
 import { useToast } from '@/hooks/useToast'
 import { scheduler } from '@/domain/scheduler'
 import { reservationManager } from '@/domain/reservation'
-import { ExecutionResult, type ExecutionQueueItem } from '@/domain/execution'
-import { ReservationStatus } from '@/types/reservation'
+import {
+  ExecutionResult,
+  type ExecutionQueueItem,
+  type ExecutionRun,
+  type ExecutionTimelineStep,
+} from '@/domain/execution'
 
 const RESULT_LABEL: Record<ExecutionResult, string> = {
   [ExecutionResult.Success]: '성공(Mock)',
@@ -13,24 +17,27 @@ const RESULT_LABEL: Record<ExecutionResult, string> = {
   [ExecutionResult.Waiting]: '대기',
   [ExecutionResult.Running]: '진행중',
   [ExecutionResult.Skipped]: '건너뜀',
+  [ExecutionResult.Retry]: '재시도 필요',
 }
 
-const STAGES = ['Ready', 'Queue', 'Running', 'Completed'] as const
+const STEP_LABEL: Record<ExecutionTimelineStep, string> = {
+  QUEUED: 'Queue 생성',
+  READY: 'Ready',
+  EXECUTION_START: 'Execution Start',
+  ADAPTER_CALLED: 'Adapter 호출',
+  COMPLETED: 'Completed',
+}
 
-/** 큐 항목의 현재 진행 단계를 계산한다. 실제 상태를 변경하지 않고 화면 표시용으로만 사용한다. */
-function getStageIndex(status: ReservationStatus, result?: ExecutionResult): number {
-  if (result === ExecutionResult.Success) return 3
-  if (status === ReservationStatus.Running || result === ExecutionResult.Running) {
-    return 2
-  }
-  // Queue에 포함된 항목은 이미 Ready를 지난 상태이므로 최소 Queue 단계로 표시한다.
-  return 1
+/** ISO(UTC) 시각 문자열에서 HH:mm:ss만 추출해 표시한다. */
+function formatTimelineTime(value: string): string {
+  return value.replace('T', ' ').slice(11, 19)
 }
 
 /**
  * Simulation Mode 화면 (/simulation).
  * Scheduler(→ Execution Engine → Site Adapter)가 계산한 Execution Queue를 보여주고,
- * 항목별로 Mock 실행을 시도해 ExecutionResult를 확인할 수 있다.
+ * 항목별로 Mock 실행을 시도해 Execution Timeline(Queue 생성 → Ready → Execution Start →
+ * Adapter 호출 → Completed)과 ExecutionResult를 확인할 수 있다.
  *
  * PM 지시(Sprint 6): 실제 예약을 실행하지 않는다. 이 화면은 Execution Queue/Priority/
  * 상태 변화/Execution 순서를 확인하기 위한 Simulation 목적으로만 사용한다.
@@ -39,12 +46,12 @@ function getStageIndex(status: ReservationStatus, result?: ExecutionResult): num
 function Simulation() {
   const { showToast } = useToast()
   const [queue] = useState<ExecutionQueueItem[]>(() => scheduler.getExecutionQueue())
-  const [results, setResults] = useState<Record<string, ExecutionResult>>({})
+  const [runs, setRuns] = useState<Record<string, ExecutionRun>>({})
 
   function handleRun(item: ExecutionQueueItem) {
-    const result = scheduler.simulateExecution(item.context)
-    setResults((prev) => ({ ...prev, [item.context.reservationId]: result }))
-    showToast(`Simulation 결과: ${RESULT_LABEL[result]}`, 'info')
+    const run = scheduler.simulateExecution(item)
+    setRuns((prev) => ({ ...prev, [item.context.reservationId]: run }))
+    showToast(`Simulation 결과: ${RESULT_LABEL[run.result]}`, 'info')
   }
 
   return (
@@ -73,8 +80,7 @@ function Simulation() {
               const reservation = reservationManager.getById(
                 item.context.reservationId
               )
-              const result = results[item.context.reservationId]
-              const stageIndex = getStageIndex(item.status, result)
+              const run = runs[item.context.reservationId]
 
               return (
                 <div
@@ -90,20 +96,27 @@ function Simulation() {
                     </span>
                   </div>
 
-                  <div className="mt-3 flex items-center gap-1">
-                    {STAGES.map((stage, index) => (
-                      <span
-                        key={stage}
-                        className={`rounded-full px-2 py-1 text-[11px] font-medium ${
-                          index <= stageIndex
-                            ? 'bg-primary-500/20 text-primary-500'
-                            : 'bg-neutral-800 text-neutral-600'
-                        }`}
+                  {/* Execution Timeline: 실행 전에는 Queue/Ready 단계만 표시한다. */}
+                  <ol className="mt-3 space-y-1">
+                    {(
+                      run?.timeline ?? [
+                        { step: 'QUEUED' as const, at: item.queuedAt },
+                        { step: 'READY' as const, at: item.queuedAt },
+                      ]
+                    ).map((entry, index) => (
+                      <li
+                        key={`${entry.step}-${index}`}
+                        className="flex items-center justify-between text-xs"
                       >
-                        {stage}
-                      </span>
+                        <span className="text-neutral-300">
+                          {index + 1}. {STEP_LABEL[entry.step]}
+                        </span>
+                        <span className="text-neutral-500">
+                          {formatTimelineTime(entry.at)}
+                        </span>
+                      </li>
                     ))}
-                  </div>
+                  </ol>
 
                   <div className="mt-3 flex items-center justify-between">
                     <button
@@ -113,9 +126,9 @@ function Simulation() {
                     >
                       시뮬레이션 실행
                     </button>
-                    {result && (
+                    {run && (
                       <span className="text-xs text-neutral-400">
-                        결과: {RESULT_LABEL[result]}
+                        결과: {RESULT_LABEL[run.result]}
                       </span>
                     )}
                   </div>

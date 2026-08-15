@@ -5,9 +5,8 @@ import {
   executionEngine,
   ExecutionEngine,
   DEFAULT_EXECUTION_RULE,
-  type ExecutionContext,
   type ExecutionQueueItem,
-  type ExecutionResult,
+  type ExecutionRun,
   type ExecutionRule,
 } from '@/domain/execution'
 import { getNow } from '@/utils/time'
@@ -59,11 +58,12 @@ export class Scheduler {
   }
 
   /**
-   * 단일 ExecutionContext를 실행(Simulation)한다.
-   * 실제 예약을 실행하지 않으며, Mock Site Adapter의 결과를 그대로 반환한다.
+   * Execution Queue 항목을 실행(Simulation)한다.
+   * 실제 예약을 실행하지 않으며, Mock Site Adapter의 결과와 Execution Timeline
+   * (Queue 생성 -> Ready -> Execution Start -> Adapter 호출 -> Completed)을 반환한다.
    */
-  simulateExecution(context: ExecutionContext): ExecutionResult {
-    return this.execution.execute(context)
+  simulateExecution(item: ExecutionQueueItem): ExecutionRun {
+    return this.execution.execute(item)
   }
 }
 

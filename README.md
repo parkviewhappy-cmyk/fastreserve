@@ -177,3 +177,14 @@ Interpark Adapter는 Mock으로만 구현했으며, 실제 예약은 실행하�
 - Execution Queue의 Site Priority는 Sprint 5에서 추가한 `SiteAccount.priority`를 그대로 사용한다.
 
 다음 Sprint에서 PM 승인 후 실제 Browser 연동 단계로 진행한다.
+
+**PM Review 반영 (Sprint 6 Review)**
+- Site Adapter 선택을 Factory Pattern으로 전환했다: `SiteAdapterFactory.getAdapter(site)`. Execution Engine은 이 Factory만 호출하며 구체 Adapter 클래스나 등록 방식을 알지 못한다(기존 `adapter.registry.ts`는 제거).
+- Simulation 화면에 Execution Timeline을 추가했다: Queue 생성 → Ready → Execution Start → Adapter 호출 → Completed 순서를 각 단계 시각과 함께 표시한다. Execution Engine의 `execute()`가 Timeline을 생성해 반환한다(UI에서 재구성하지 않음).
+- `ExecutionResult`에 `RETRY`를 추가했다. Enum 값만 추가했으며 실제 재시도 로직은 구현하지 않았다.
+- Site Adapter Interface에 `supports(feature: SiteCapability): boolean`을 추가했다.
+- `SiteCapability` 타입을 추가했다: `SEAT_SELECTION` / `QUEUE_WAITING` / `CAPTCHA` / `MOBILE_ONLY` / `DESKTOP_ONLY`. Interpark Adapter는 `supports()`를 구현했다(seatSelection/queueWaiting/captcha 지원, mobileOnly/desktopOnly 아님).
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- Timeline의 "Queue 생성"과 "Ready" 시각은 동일 시점(`queuedAt`)으로 기록한다. Execution Queue는 이미 Ready/Running 상태인 예약만 담기 때문에, Queue에 편입되는 순간이 곧 Ready가 확인된 순간이라고 판단했다. openTime 기준으로 "언제 Ready 상태가 되었는지"를 ReadyRule로 역산하는 방식도 검토했으나, Execution 도메인이 ReadyRule 내부 계산식에 의존하게 되는 추가 결합이 생겨 이번 Sprint 범위에서는 제외했다.
+- `simulateExecution`/`execute`가 받는 인자를 `ExecutionContext`에서 `ExecutionQueueItem`으로 변경했다. Timeline의 "Queue 생성"/"Ready" 단계 시각(`queuedAt`)이 Queue 항목에만 존재하기 때문이다(PM이 지정한 ExecutionContext 필드 목록 자체는 변경하지 않았다).
