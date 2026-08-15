@@ -6,7 +6,7 @@
 인터파크 전용 MVP를 먼저 완성하고, 안정성과 사용성을 검증한 후
 APK 및 다른 예약 사이트로 확장합니다.
 
-현재 버전: v0.4.0
+현재 버전: v0.5.0
 
 ## 개발 원칙
 
@@ -47,15 +47,21 @@ fastreserve/
 │   │   │   ├── repository/        # 데이터 접근 추상화 (Mock/LocalStorage)
 │   │   │   ├── validator/         # 입력값 검증
 │   │   │   └── mock/              # Mock 데이터
-│   │   └── ready/                 # Ready Engine 도메인 (Sprint 4)
-│   │       ├── calculator/         # Reservation Status Calculator
-│   │       ├── filter/             # Today/Upcoming/Ready/Completed/Failed Filter
-│   │       ├── engine/             # Ready Engine (Dashboard Summary 포함)
-│   │       └── types.ts            # ReadyStatus, DashboardSummary
+│   │   ├── ready/                 # Ready Engine 도메인
+│   │   │   ├── calculator/         # Reservation Status Calculator
+│   │   │   ├── filter/             # Today/Upcoming/Ready/Completed/Failed Filter
+│   │   │   ├── engine/             # Ready Engine (Dashboard Summary 포함)
+│   │   │   ├── rule/               # ReadyRule (시간 기준 설정, Magic Number 제거)
+│   │   │   └── types.ts            # DashboardSummary
+│   │   ├── siteAccount/           # Site Account 도메인 (Sprint 5)
+│   │   ├── session/               # Session 도메인 (Sprint 5, LocalStorage Mock)
+│   │   ├── scheduler/             # Scheduler 구조 + ExecutionContext (Sprint 5, 실행 없음)
+│   │   └── healthCheck/           # Health Check 도메인 (Sprint 5)
 │   ├── pages/
 │   │   ├── Home/                  # Home 화면 (Dashboard 포함)
 │   │   ├── AddReservation/        # 예약 등록 화면
-│   │   └── ReservationDetail/     # 예약 상세/수정 화면
+│   │   ├── ReservationDetail/     # 예약 상세/수정 화면
+│   │   └── SiteSettings/          # 사이트 관리 화면 (/site, Sprint 5)
 │   ├── hooks/
 │   │   └── useToast.tsx           # Toast 전역 상태
 │   ├── services/
@@ -118,4 +124,17 @@ npm run dev
 Sprint 4 범위에서는 인터파크 연동/Browser 제어/Scheduler/Notification/Countdown/API/APK를 구현하지 않았다.
 Reservation Manager와 Repository는 수정하지 않았다.
 
-다음 Sprint(Sprint 5)에서 UI 개선 및 버그 수정을 진행한다.
+### Sprint 5 (완료)
+
+- [x] Site Account Manager (사이트 추가/삭제/활성화/비활성화/로그인 상태 저장/마지막 확인시간 저장)
+- [x] Session Manager (LocalStorage 기반 Mock, Session 상태/만료/로그인 필요 여부 확인)
+- [x] Scheduler 구조 (현재시간 확인 / Reservation Scan / Ready Engine 호출 / Execution Queue 생성) — 실제 실행 없음
+- [x] ExecutionContext 타입 + Factory (Execution Engine은 미구현)
+- [x] Health Check 도메인 (로그인/세션/사이트 활성/Ready Engine 상태 종합 → GOOD/WARNING/ERROR)
+- [x] 사이트 관리 화면 (`/site`) — 로그인 상태, 세션 상태, 마지막 확인, 로그인 확인(Mock) 버튼
+- [x] Home Dashboard에 로그인 완료/로그인 필요 카드 연동 (Health Check 결과만 사용)
+
+Sprint 5 범위에서는 인터파크 자동 로그인/아이디·비밀번호 저장/Browser 자동 제어/예약 실행/결제 진행/API 연동을 구현하지 않았다.
+FastReserve는 아이디와 비밀번호를 저장하지 않으며, 사이트별 로그인 Session 상태만 관리한다.
+
+다음 Sprint(Sprint 6)에서 Site Adapter, 실제 Session/Scheduler 연동, Execution Engine을 구현한다.
