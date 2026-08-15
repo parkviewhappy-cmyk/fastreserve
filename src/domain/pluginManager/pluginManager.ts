@@ -19,8 +19,10 @@ import { getNow } from '@/utils/time'
  * Plugin 등록/제거/조회/활성화/비활성화/Version 확인/Capability 조회를 담당하는
  * 단일 진입점이다. UI(Plugin Settings 화면 등)는 이 Manager만 사용한다.
  *
- * Plugin Registry(목록 저장)와 Plugin Factory(Plugin 인스턴스 생성)를 조합해서 쓰며,
- * 등록 시 기록하는 Version/활성화 여부는 PluginRule만 참조한다(PM 지시).
+ * Plugin Registry(목록 저장)와 Plugin Factory(Plugin 인스턴스 생성)를 조합해서 쓴다.
+ * PM Review 반영(Sprint 7): 등록 시 기록하는 Version은 PluginRule이 아니라
+ * Plugin.getVersion()에서 가져온다(Rule은 정책만, Version은 Plugin이 관리한다).
+ * autoEnable 등 정책값은 계속 PluginRule을 참조한다.
  */
 export class PluginManager {
   constructor(
@@ -48,7 +50,7 @@ export class PluginManager {
     }
     return this.registry.register({
       site,
-      version: rule.defaultVersion,
+      version: plugin.getVersion(),
       enabled: rule.autoEnable,
       installedAt: getNow().toISOString(),
     })
