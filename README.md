@@ -254,3 +254,34 @@ PM 지시에 따라 이번 Sprint는 새로운 Engine/Manager/Domain을 추가�
 - Plugin Settings 화면의 Session 상태/마지막 확인시간/로그인 상태 확인 버튼은 Interpark 행에만 표시했다(TicketLink/YES24는 Plugin 미구현이라 Session 개념이 아직 의미가 없다고 판단했다).
 
 다음 Sprint에서 PM 승인 후 실제 Session Checker/Browser 연동 또는 History/Setting 화면으로 진행한다.
+
+### Sprint 9 (완료) — Interpark Integration (MVP)
+
+PM 지시에 따라 이번 Sprint도 새로운 Engine/Manager/Domain을 추가하지 않고 기존 Core만 사용했다. Interpark 하나만 지원한다.
+
+- [x] Interpark URL 검증 강화 — `interpark.com` 전체 도메인이 아니라 `tickets.interpark.com`(및 하위 도메인, 예: `m.tickets.interpark.com`)만 허용. `shop.interpark.com`/`tour.interpark.com`/`book.interpark.com` 등은 실패 처리
+- [x] 예약 페이지 열기 버튼 — 예약 준비 화면(`/ready/:id`)에 `[예약 페이지 열기]` 버튼 추가. `window.open()`으로 새 탭에 예약 URL을 여는 것뿐이며, 페이지 내부에서 어떤 자동 동작도 수행하지 않는다. URL이 없으면 버튼을 비활성화한다
+- [x] 로그인 상태 확인 구조 — 기존 `SessionChecker`(Mock, 주입 가능한 구조, Sprint 8) 유지. Plugin 관리 화면에서 `[로그인 상태 확인]` 클릭 시 마지막 확인 시각/상태가 화면과 Toast에 즉시 반영되는 것을 확인
+- [x] 예약 준비 화면 개선 — 예약 URL, Plugin Version, Plugin 상태(활성화/사용가능 여부), Session 마지막 확인 시각, `[예약 페이지 열기]` 버튼 추가
+- [x] Simulation 개선 — 항목별로 "1. Plugin 실행 → 2. 예약 페이지 열기(예정) → 3. Execution 결과" 순서를 버튼/표시로 나타냄. "예약 페이지 열기"는 Ready 화면과 동일하게 `window.open()`만 수행하며 실제 Browser 제어는 하지 않는다
+- [x] Home 사용성 — 기존 Home → 예약 준비(`/ready/:id`) 링크에 이어, Ready 화면에 추가된 `[예약 페이지 열기]` 버튼으로 Home에서 클릭만으로 예약 페이지까지 도달 가능함을 확인(코드 변경 없이 기존 동선으로 충족)
+
+구현 금지 항목(자동 로그인/자동 클릭/자동 좌석 선택/자동 결제/CAPTCHA 우회/Playwright/Puppeteer/Chrome Extension/외부 자동화 라이브러리/약관 우회)은 구현하지 않았다.
+
+**설계 결정 (특이사항, PM 확인 요청)**
+- Interpark URL 정규식은 `tickets.interpark.com` 및 그 하위 도메인(`m.tickets.interpark.com` 등)을 허용하고, `shop`/`tour`/`book` 등 다른 하위 서비스 도메인은 거부하도록 좁혔다. 도메인만 검사하며 경로(예: `/goods/...`)는 특정 패턴을 강제하지 않았다 — 필요하면 경로 패턴도 추가로 검증할 수 있다.
+- Simulation 화면의 "예약 페이지 열기" 버튼은 `ExecutionContext.reservationUrl`을 그대로 사용한다(Execution Engine/Plugin을 거치지 않고 이미 계산된 Queue 데이터의 URL을 직접 사용). URL을 여는 것은 실행(Execution)이 아니라 순수 탐색 동작이라고 판단해 Scheduler를 거치지 않고 UI에서 바로 처리했다.
+- "예약 페이지 열기"는 두 화면(예약 준비, Simulation) 모두 미실행 상태에서도 클릭 가능하다(꼭 Plugin을 먼저 실행해야 열리는 것은 아님). 실제 사용자는 준비 화면에서 로그인 확인 없이도 예약 페이지를 미리 볼 수 있어야 한다고 판단했다.
+
+**MVP 테스트 결과**
+
+- Chrome 테스트 / Edge 테스트: 이 개발 환경(샌드박스)은 GUI 브라우저와 npm 레지스트리 접근이 모두 차단되어 있어(`npm install`/`npm run dev` 실행 불가, 문서 상단에 기록된 기존 제약과 동일) 실제 Chrome/Edge에서 직접 클릭 테스트를 수행하지 못했다. 코드 정적 검증(모든 import 경로 해석, 금지 패턴 grep, 정규식 단위 테스트)은 완료했지만, 실제 브라우저 동작 확인은 **PM(사용자)이 로컬에서 `npm install && npm run dev` 실행 후 Chrome/Edge 각각에서 직접 확인**해주셔야 한다. 확인해야 할 항목: 예약 등록 시 URL 검증 메시지, `/ready/:id` 화면의 각 카드, `[예약 페이지 열기]` 버튼(새 탭 오픈 여부), Simulation 화면의 1→2→3 버튼 흐름.
+- 새로고침 확인: 코드상 모든 Repository/Registry(Reservation/SiteAccount/Session/PluginRegistry)가 호출마다 `window.localStorage`를 다시 읽는 구조임을 Sprint 8에 이어 재확인했다(모듈 레벨 캐시 없음). 실제 브라우저 새로고침 테스트는 위와 동일한 이유로 PM 확인이 필요하다.
+- LocalStorage 확인: 저장 키(`fastreserve:reservations`, `fastreserve:siteAccounts`, `fastreserve:sessions`, `fastreserve:pluginRegistry`)와 읽기/쓰기 로직을 코드로 확인했다. 브라우저 개발자 도구의 Application 탭에서 직접 확인 가능하다.
+- URL 검증: Python으로 정규식 로직을 동일하게 재현해 아래 케이스를 검증했다(모두 기대값과 일치).
+  - 허용: `https://tickets.interpark.com/`, `https://m.tickets.interpark.com/goods/123`, `https://tickets.interpark.com/goods/26000001`
+  - 거부: `https://shop.interpark.com/`, `https://tour.interpark.com/`, `https://book.interpark.com/`, `https://interpark.com/`, `https://ticketsxinterpark.com/`(유사 도메인), `http://tickets.interpark.com/`(https 아님)
+- 예약 페이지 열기: `window.open(url, '_blank', 'noopener,noreferrer')` 호출부만 존재함을 코드로 확인했다(자동 클릭/자동 입력 없음). 실제 새 탭 오픈 동작은 브라우저에서만 확인 가능하므로 위와 동일하게 PM 확인이 필요하다.
+- 발견된 버그: 없음(정적 검증 범위 내에서는 발견되지 않았다).
+
+다음 Sprint에서 PM 승인 후 실제 브라우저 테스트 결과에 따른 후속 조치 또는 History/Setting 화면으로 진행한다.

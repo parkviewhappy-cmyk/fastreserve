@@ -80,7 +80,12 @@ function PluginSettings() {
     showToast('Plugin을 삭제했습니다', 'info')
   }
 
-  /** 로그인 상태 확인(Mock). 기존 Session Manager + Site Account Manager를 그대로 사용한다. */
+  /**
+   * 로그인 상태 확인(Mock).
+   * 기존 Session Manager(SessionChecker 주입 가능한 구조, Sprint 8) + Site Account
+   * Manager를 그대로 사용한다. 확인 후 마지막 확인 시각/상태를 화면에 즉시 반영한다
+   * (PM 지시, Sprint 9: 로그인 상태 확인 시 마지막 확인 시각/상태를 정상 표시).
+   */
   function handleCheckLogin(account: SiteAccount) {
     const session = sessionManager.checkSession(account.id, account.site)
     siteAccountManager.updateLoginState(account.id, {
@@ -90,7 +95,7 @@ function PluginSettings() {
     })
     refresh()
     showToast(
-      `Session 상태: ${getSessionStatusLabel(session.status)}`,
+      `Session 상태: ${getSessionStatusLabel(session.status)} (${formatLastChecked(session.checkedAt)} 확인)`,
       'info'
     )
   }

@@ -59,6 +59,9 @@ function formatTimelineTime(value: string): string {
  * PM 지시(Sprint 8): Timeline/Queue/Plugin/ExecutionResult를 실시간으로 확인할 수 있도록
  * Queue 새로고침 버튼을 추가했다(Execution Queue는 예약 추가/변경 이후에도 최신 상태로
  * 다시 계산할 수 있어야 한다).
+ * PM 지시(Sprint 9): "Plugin 실행 -> 예약 페이지 열기 예정 -> Execution 결과" 흐름을
+ * 항목별 버튼/표시로 나타낸다. "예약 페이지 열기"는 window.open()으로 URL을 새 탭에
+ * 여는 것뿐이며, 실제 Browser 제어(자동 클릭 등)는 하지 않는다.
  */
 function Simulation() {
   const { showToast } = useToast()
@@ -171,17 +174,35 @@ function Simulation() {
                     ))}
                   </ol>
 
-                  <div className="mt-3 flex items-center justify-between">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleRun(item)}
                       className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-primary-700"
                     >
-                      시뮬레이션 실행
+                      1. Plugin 실행
                     </button>
+
+                    <button
+                      type="button"
+                      disabled={!item.context.reservationUrl}
+                      onClick={() => {
+                        if (item.context.reservationUrl) {
+                          window.open(
+                            item.context.reservationUrl,
+                            '_blank',
+                            'noopener,noreferrer'
+                          )
+                        }
+                      }}
+                      className="rounded-lg border border-neutral-800 px-3 py-1.5 text-xs font-medium text-neutral-300 transition-colors hover:bg-neutral-800 disabled:cursor-not-allowed disabled:text-neutral-600"
+                    >
+                      2. 예약 페이지 열기{!run && ' 예정'}
+                    </button>
+
                     {run && (
                       <span className="text-xs text-neutral-400">
-                        결과: {RESULT_LABEL[run.result]}
+                        3. Execution 결과: {RESULT_LABEL[run.result]}
                       </span>
                     )}
                   </div>
