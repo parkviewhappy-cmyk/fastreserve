@@ -25,7 +25,7 @@ import { createExecutionContext } from '../factory/executionContext.factory'
  * Sprint 6 범위: 실제 예약을 실행하지 않는다(Simulation Mode). 구조 완성이 목표다.
  *
  * 역할: Execution Queue 생성 / Priority 계산(Site Priority 포함) / Plugin 선택 /
- * ExecutionContext 전달 / 실행 결과 반환.
+ * ExecutionContext 전달 / 준비 완료 상태 반환.
  *
  * 원칙:
  * - 어떤 사이트인지 알지 못한다. Plugin Interface를 통해서만 사이트와 상호작용한다.
@@ -37,6 +37,12 @@ import { createExecutionContext } from '../factory/executionContext.factory'
  *
  * PM Review 반영(Sprint 7): Site Adapter Factory 대신 Plugin Factory만 호출한다
  * ("Execution Engine은 Plugin Factory만 호출합니다").
+ *
+ * PM 지시(Sprint 10, Reservation Assistant 전환): execute()를 prepareExecution()으로
+ * 이름과 역할을 변경한다. 더 이상 Plugin.execute()(실제 예약 시도)를 호출하지 않으며,
+ * "예약 준비 완료" 상태까지만 확인한다. 사람 대신 예약을 진행하지 않는다 - 최종 예약
+ * 페이지 진입/예매 시작은 항상 사용자의 수동 클릭([예약 페이지 열기])으로만 이루어진다.
+ * ExecutionResult.Success는 이제 "예약 성공"이 아니라 "예약 준비 완료"를 의미한다.
  */
 export class ExecutionEngine {
   constructor(
@@ -114,11 +120,19 @@ export class ExecutionEngine {
   }
 
   /**
-   * Execution Queue 항목을 Plugin에 전달해 실행한다(Simulation).
-   * 실제 예약을 실행하지 않으며, Mock Plugin의 결과와 함께 Execution Timeline
-   * (Queue 생성 -> Ready -> Execution Start -> Plugin 호출 -> Completed)을 반환한다.
+   * Execution Queue 항목의 "예약 준비"를 수행한다(Preparation/Simulation 전용).
+   *
+   * PM 지시(Sprint 10): 자동으로 예약을 실행하지 않는다. Plugin.execute()(실제 예약 시도)는
+   * 호출하지 않으며, prepare/checkSession/openReservation(페이지 진입 준비)까지만 수행해
+   * "예약 준비 완료" 여부를 판단한다. 사람 대신 예약을 진행하는 동작은 없다 - 실제 예약
+   * 페이지 진입은 사용자가 [예약 페이지 열기] 버튼을 직접 눌러야만 이루어진다.
+   *
+   * 반환값(ExecutionResult) 의미:
+   * - Success: 준비 완료(Plugin 사용 가능 + Session 정상 + 예약 URL 확인됨)
+   * - Waiting: Session이 아직 준비되지 않음(로그인 필요 등)
+   * - Skipped: Plugin이 없거나 예약 URL이 없어 준비할 수 없음
    */
-  execute(item: ExecutionQueueItem): ExecutionRun {
+  prepareExecution(item: ExecutionQueueItem): ExecutionRun {
     const timeline: ExecutionTimelineEntry[] = [
       { step: 'QUEUED', at: item.queuedAt },
       { step: 'READY', at: item.queuedAt },
@@ -138,12 +152,17 @@ export class ExecutionEngine {
       return { result: ExecutionResult.Waiting, timeline }
     }
 
+    if (!item.context.reservationUrl) {
+      timeline.push({ step: 'COMPLETED', at: getNow().toISOString() })
+      return { result: ExecutionResult.Skipped, timeline }
+    }
+
     timeline.push({ step: 'PLUGIN_CALLED', at: getNow().toISOString() })
+    // 실제 예약 시도(Plugin.execute)는 호출하지 않는다. 페이지 진입 준비만 확인한다.
     plugin.openReservation(item.context)
-    const result = plugin.execute(item.context)
     timeline.push({ step: 'COMPLETED', at: getNow().toISOString() })
 
-    return { result, timeline }
+    return { result: ExecutionResult.Success, timeline }
   }
 }
 

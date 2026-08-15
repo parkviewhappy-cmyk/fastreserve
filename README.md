@@ -285,3 +285,40 @@ PM 지시에 따라 이번 Sprint도 새로운 Engine/Manager/Domain을 추가�
 - 발견된 버그: 없음(정적 검증 범위 내에서는 발견되지 않았다).
 
 다음 Sprint에서 PM 승인 후 실제 브라우저 테스트 결과에 따른 후속 조치 또는 History/Setting 화면으로 진행한다.
+
+### Sprint 10 (완료) — Reservation Assistant 전환
+
+**중요 배경**: PM의 최초 Sprint 10 지시는 "예약 시간 도달 시 자동으로 예약을 실행하는 Scheduler/ExecutionManager"였다. 이는 2024년 개정 공연법(2024.3.22 시행, 매크로 프로그램을 이용한 부정 예매 시 1년 이하 징역 또는 1천만원 이하 벌금)이 금지하는 매크로 기반 티켓 구매의 핵심 동작(자동 로그인/자동 클릭/자동 예약 실행)과 일치하고, 인터파크 이용약관의 자동화 도구 금지 조항에도 위배된다고 판단해 구현을 보류하고 PM에 문의했다. PM은 이후 "자동 실행"을 완전히 제거하고 사용자의 수동 클릭을 항상 요구하는 **"Reservation Assistant"**(예약 준비 지원 도구) 방향으로 지시를 변경했고, 이번 Sprint는 그 변경된 지시를 구현했다.
+
+- [x] Execution Engine: `execute()` → `prepareExecution()`으로 이름/역할 변경. `Plugin.execute()`(실제 예약 시도)를 더 이상 호출하지 않으며 "예약 준비 완료" 여부만 확인한다. `ExecutionResult.Success`는 이제 "예약 성공"이 아니라 "예약 준비 완료"를 의미한다(Enum 멤버 추가/삭제 없이 의미만 재정의)
+- [x] Scheduler: `simulateExecution()`(메서드명 유지, 호출부 영향 최소화)이 내부적으로 `prepareExecution()`을 호출하도록 변경. "예약시간 도달 → 자동 실행" 흐름 제거, "예약시간 접근 → 사용자 알림 → 준비 확인" 흐름으로 전환
+- [x] Ready Screen(`/ready/:id`) 대폭 개선 — 실시간 Countdown(1초 tick), 인터넷 상태(`navigator.onLine` + online/offline 이벤트), 예약 준비 점수(100점 만점: 로그인/Plugin/인터넷/URL 각 25점), 체크리스트 UI, 10분/5분/1분 전 1회성 알림(Notification API, 권한 허용 시에만) + 1분 전 진동(Vibration API), 30초 이하 구간 초 단위 강조 표시. 기존 `[예약 페이지 열기]` 버튼은 변경 없이 `window.open()`만 수행
+- [x] Plugin: `PluginManager.isHealthy(site)` 추가(기존 `Plugin.healthCheck()`에 위임하는 조회 전용 메서드, 새 Manager/Engine 아님). Ready Screen에 "★★★★★ Plugin 정상" 형태로 표시
+- [x] Home: "예매 준비 점수"를 가장 가까운 예약(readyTarget) 기준으로 표시. 점수 계산은 Ready Screen과 공유하는 순수 함수(`src/pages/ReadyScreen/readinessScore.ts`)를 사용해 로직 중복 없음
+- [x] Simulation: "Execution Simulation" → "Preparation Simulation"으로 재정의. 예시 흐름("로그인 OK → Plugin OK → 예약 페이지 준비 → 사용자가 예매 시작") 안내 문구 추가, 버튼/결과 라벨을 준비-지향 표현으로 변경("1. 예약 준비 확인", "3. 준비 결과", `RESULT_LABEL`을 "준비 완료/준비 실패" 등으로 변경)
+
+구현 금지 항목(자동 로그인/자동 클릭/자동 예약/자동 좌석 선택/자동 결제/사람 대신 예약 진행)은 구현하지 않았다. `Plugin.execute()`/`SiteAdapter.execute()` 인터페이스 메서드 자체는 삭제하지 않았다(계약은 유지하되 Execution Engine이 더 이상 호출하지 않는 방식으로 "삭제보다 역할 변경"을 우선했다).
+
+**기존 코드 유지율(%)**: 약 99.3% (develop 기준 `src/` 전체 4,330줄 중 이번 Sprint에서 삭제된 줄은 31줄. `git diff develop --stat` 기준 근사치이며, 대부분의 삭제는 "이름 변경"에 수반된 이전 줄 삭제이지 기능 삭제가 아니다)
+
+**삭제된 파일**: 없음
+
+**변경된 파일**: `src/domain/execution/engine/execution.engine.ts`, `src/domain/execution/types.ts`, `src/domain/pluginManager/pluginManager.ts`, `src/domain/scheduler/scheduler.ts`, `src/pages/Home/Home.tsx`, `src/pages/ReadyScreen/ReadyScreen.tsx`, `src/pages/Simulation/Simulation.tsx`
+
+**추가된 기능**: Countdown(실시간)/인터넷 상태 표시/예약 준비 점수/체크리스트/10분·5분·1분 전 알림/1분 전 진동/Plugin Health Score(★)/Home 예매 준비 점수/Preparation Simulation 안내 문구. 새 파일은 점수 계산 공유 유틸 `readinessScore.ts` 1개뿐이며, 새로운 Domain/Engine/Manager는 추가하지 않았다
+
+**기존 기능 영향**: 예약 CRUD/History/Session/Site Account/Plugin 등록·활성화/URL 검증/`[예약 페이지 열기]` 버튼 동작은 변경하지 않았다. `Simulation.simulateExecution()` 호출부(Simulation.tsx)는 메서드 시그니처가 그대로라 코드 수정 없이 새 `prepareExecution()` 로직으로 자동 연결된다
+
+**MVP 테스트 결과**
+
+- 정적 검증: 전체 `src/` import 경로 해석(Python 스크립트) 통과, 금지 패턴(`puppeteer`/`playwright`/`selenium`/`chrome-extension`/자동클릭/비밀번호 저장 등) grep 검사에서 발견 없음, 중괄호/괄호/대괄호 balance 검사 통과
+- 예약 준비 점수 로직: `computeReadinessScore()`와 동일한 로직을 Node.js로 재구현해 4가지 케이스(전체 충족/로그인만 누락/전체 미충족/URL·Plugin만 누락)를 단위 테스트했고 모두 기대값(100/75/0/50점)과 일치했다
+- Execution Engine 호출부 점검: `executionEngine`/`plugin.execute(` 관련 grep 결과, `Plugin.execute()`를 실제로 호출하는 코드는 더 이상 없고(주석 설명 문구만 남아 있음), Scheduler → Execution Engine 파이프라인은 `prepareExecution()`만 호출함을 확인
+- Chrome/Edge 브라우저 테스트: 이 개발 환경은 GUI 브라우저와 npm 레지스트리 접근이 차단되어 있어(Sprint 8-9와 동일한 제약) Countdown/알림 권한 팝업/진동/온라인-오프라인 전환 등 브라우저 전용 동작은 코드 검증만 완료했다. **PM이 로컬에서 `npm install && npm run dev` 실행 후 직접 확인 필요**: (1) `/ready/:id`에서 Countdown이 1초마다 갱신되는지, (2) 알림 권한을 허용했을 때 10분/5분/1분 전 알림이 실제로 뜨는지(테스트 시 예약의 `openTime`을 가까운 시각으로 임시 수정해서 확인 권장), (3) 모바일 기기에서 1분 전 진동이 동작하는지, (4) Wi-Fi를 끄고 켰을 때 "인터넷 상태" 표시가 실시간으로 바뀌는지, (5) Home의 "예매 준비 점수"와 Ready Screen 점수가 같은 예약에 대해 일치하는지
+- 발견된 버그: 없음(정적 검증 범위 내)
+
+**PM Review 요청**
+
+1. `ExecutionResult.Failed`/`Retry`는 현재 `prepareExecution()`이 실제로 반환하지 않는 값이 되었다(Enum 멤버는 유지). 향후 "준비 확인 자체가 실패하는 경우"(예: Plugin healthCheck 실패)를 별도로 반환하도록 확장할지, 아니면 현재처럼 Waiting/Skipped로만 표현할지 방향을 확인 부탁드린다.
+2. 알림(Notification)은 브라우저 권한이 "허용"된 경우에만 동작하며, 권한 요청은 Ready Screen 최초 진입 시 1회 자동으로 뜬다(사용자가 "차단"을 누르면 이후 알림 없이 조용히 동작). 이 정책(자동으로 권한 요청 팝업을 띄우는 것)이 UX상 괜찮은지, 아니면 별도의 "알림 켜기" 버튼을 눌러야 요청하도록 바꿀지 확인 부탁드린다.
+3. 예약 준비 점수의 4개 항목(로그인/Plugin/인터넷/URL) 가중치를 동일하게 25점씩 두었다. 항목별 가중치를 다르게 둘지(예: 로그인 상태를 더 중요하게) 확인 부탁드린다.

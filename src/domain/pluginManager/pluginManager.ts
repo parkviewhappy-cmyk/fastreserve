@@ -93,6 +93,17 @@ export class PluginManager {
   isAvailable(site: SiteType): boolean {
     return this.factory.createPlugin(site)?.isEnabled() ?? false
   }
+
+  /**
+   * Plugin의 상태(Health)를 확인한다(Plugin.healthCheck()).
+   * PM 지시(Sprint 10, Reservation Assistant 전환): Ready Screen/Home 등에서
+   * "Plugin Health Score"(예: ★★★★★ Plugin 정상)를 표시하기 위한 조회 전용 메서드다.
+   * 새로운 Engine/Manager를 만들지 않고 기존 Plugin Interface의 healthCheck()를
+   * 그대로 위임 호출한다. Factory가 지원하지 않는 사이트면 false를 반환한다.
+   */
+  isHealthy(site: SiteType): boolean {
+    return this.factory.createPlugin(site)?.healthCheck() ?? false
+  }
 }
 
 /** 기본 Plugin Manager 인스턴스. */
