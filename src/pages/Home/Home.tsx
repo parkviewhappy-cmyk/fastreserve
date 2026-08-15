@@ -36,6 +36,7 @@ function Home() {
             />
             <SummaryCard label="준비중" value={dashboard.preparingReservation} />
             <SummaryCard label="준비 완료" value={dashboard.readyReservation} />
+            <SummaryCard label="진행중" value={dashboard.runningReservation} />
             <SummaryCard label="완료" value={dashboard.completedReservation} />
             <SummaryCard label="실패" value={dashboard.failedReservation} />
           </div>
