@@ -4,9 +4,18 @@
  * PM Review 반영: ReservationStatus/SiteType Enum화, ID UUID 형식, 날짜 ISO 8601 통일
  */
 
-/** 예약 대상 사이트. 현재는 인터파크만 지원하며, 이후 확장을 대비해 Enum으로 정의한다. */
+/**
+ * 예약 대상 사이트.
+ * PM Review 반영(Sprint 5): Site Account/Session/ExecutionContext 등 프로젝트 전체가
+ * 이 SiteType 하나만 공유해서 사용한다(별도의 AccountSiteType을 두지 않는다).
+ * Reservation 자체의 MVP 범위는 여전히 Interpark만 지원한다(Interpark Only).
+ */
 export enum SiteType {
-  Interpark = 'interpark',
+  Interpark = 'INTERPARK',
+  TicketLink = 'TICKETLINK',
+  Yes24 = 'YES24',
+  JinAir = 'JINAIR',
+  Custom = 'CUSTOM',
 }
 
 /**

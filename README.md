@@ -137,4 +137,11 @@ Reservation Manager와 Repository는 수정하지 않았다.
 Sprint 5 범위에서는 인터파크 자동 로그인/아이디·비밀번호 저장/Browser 자동 제어/예약 실행/결제 진행/API 연동을 구현하지 않았다.
 FastReserve는 아이디와 비밀번호를 저장하지 않으며, 사이트별 로그인 Session 상태만 관리한다.
 
+**PM Review 반영**
+- 사이트 종류는 프로젝트 전체에서 `SiteType` 하나만 사용한다 (Reservation/SiteAccount/ExecutionContext/Session 공용, 별도 AccountSiteType 없음)
+- Session Mock은 토글이 아닌 상태 흐름을 따른다: UNKNOWN → READY → EXPIRED → LOGIN_REQUIRED → READY (반복)
+- Health Check 판정 기준은 `HealthRule` 객체로만 관리한다 (Magic Rule 없음)
+- SiteAccount에 `priority` 필드 추가 (기본값: Interpark 1 / TicketLink 2 / YES24 3), Execution Queue는 이후 Sprint에서 이 값을 사용할 예정
+- JinAir는 기본 Seed에서 제외
+
 다음 Sprint(Sprint 6)에서 Site Adapter, 실제 Session/Scheduler 연동, Execution Engine을 구현한다.

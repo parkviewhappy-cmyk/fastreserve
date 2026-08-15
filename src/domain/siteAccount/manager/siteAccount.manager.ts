@@ -1,13 +1,16 @@
+import type { SiteType } from '@/types/reservation'
 import { SessionStatus } from '@/domain/session'
 import { getNow } from '@/utils/time'
 import { generateUuid } from '@/utils/uuid'
 import type { SiteAccountRepository } from '../repository/siteAccount.repository'
 import { LocalStorageSiteAccountRepository } from '../repository/siteAccount.repository.localStorage'
-import { AccountSiteType, type SiteAccount } from '../types'
+import type { SiteAccount } from '../types'
 
 export interface AddSiteAccountInput {
-  site: AccountSiteType
+  site: SiteType
   displayName: string
+  /** 실행 우선순위. 지정하지 않으면 목록 맨 뒤 순번으로 자동 배정한다. */
+  priority?: number
   memo?: string
 }
 
@@ -46,6 +49,7 @@ export class SiteAccountManager {
       sessionStatus: SessionStatus.Unknown,
       lastChecked: null,
       lastLogin: null,
+      priority: input.priority ?? this.list().length + 1,
       memo: input.memo,
     }
     return this.repository.save(siteAccount)
