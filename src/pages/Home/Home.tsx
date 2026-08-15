@@ -5,17 +5,20 @@ import ReservationCard from '@/components/common/ReservationCard'
 import SummaryCard from '@/components/common/SummaryCard'
 import { reservationManager } from '@/domain/reservation'
 import { readyEngine } from '@/domain/ready'
+import { healthCheckEngine } from '@/domain/healthCheck'
 
 /**
  * Home 화면.
  * Sprint 4 범위: 상단 Dashboard는 Ready Engine의 getDashboardSummary() 결과만 사용하며
  * Home에서 직접 통계를 계산하지 않는다. "오늘 예약"도 Ready Engine의
  * getTodayReservations()를 사용한다.
+ * Sprint 5 범위: 사이트 로그인 상태 요약은 Health Check Engine의 getReport() 결과만 사용한다.
  */
 function Home() {
   const reservations = reservationManager.list()
   const dashboard = readyEngine.getDashboardSummary()
   const todayReservations = readyEngine.getTodayReservations()
+  const health = healthCheckEngine.getReport()
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -80,6 +83,23 @@ function Home() {
               ))}
             </div>
           )}
+        </section>
+
+        {/* 사이트 상태 (Health Check Engine 결과) */}
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-neutral-400">
+            사이트 상태
+          </h2>
+          <div className="grid grid-cols-2 gap-3">
+            <SummaryCard label="로그인 완료" value={health.loggedInSiteCount} />
+            <SummaryCard label="로그인 필요" value={health.loginRequiredSiteCount} />
+          </div>
+          <Link
+            to="/site"
+            className="mt-3 block text-center text-xs text-neutral-500 hover:text-neutral-300"
+          >
+            사이트 관리로 이동 →
+          </Link>
         </section>
 
         {/* 예약 추가 */}
