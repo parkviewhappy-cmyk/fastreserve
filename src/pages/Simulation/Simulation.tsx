@@ -4,12 +4,15 @@ import Header from '@/components/layout/Header'
 import { useToast } from '@/hooks/useToast'
 import { scheduler } from '@/domain/scheduler'
 import { reservationManager } from '@/domain/reservation'
+import { pluginManager } from '@/domain/pluginManager'
+import { formatVersion, getCapabilityLabel } from '@/domain/plugin'
 import {
   ExecutionResult,
   type ExecutionQueueItem,
   type ExecutionRun,
   type ExecutionTimelineStep,
 } from '@/domain/execution'
+import { SiteType } from '@/types/reservation'
 
 const RESULT_LABEL: Record<ExecutionResult, string> = {
   [ExecutionResult.Success]: '성공(Mock)',
@@ -24,8 +27,16 @@ const STEP_LABEL: Record<ExecutionTimelineStep, string> = {
   QUEUED: 'Queue 생성',
   READY: 'Ready',
   EXECUTION_START: 'Execution Start',
-  ADAPTER_CALLED: 'Adapter 호출',
+  PLUGIN_CALLED: 'Plugin 호출',
   COMPLETED: 'Completed',
+}
+
+const SITE_LABELS: Record<SiteType, string> = {
+  [SiteType.Interpark]: 'Interpark',
+  [SiteType.TicketLink]: 'TicketLink',
+  [SiteType.Yes24]: 'YES24',
+  [SiteType.JinAir]: 'JinAir',
+  [SiteType.Custom]: '기타',
 }
 
 /** ISO(UTC) 시각 문자열에서 HH:mm:ss만 추출해 표시한다. */
@@ -35,13 +46,16 @@ function formatTimelineTime(value: string): string {
 
 /**
  * Simulation Mode 화면 (/simulation).
- * Scheduler(→ Execution Engine → Site Adapter)가 계산한 Execution Queue를 보여주고,
+ * Scheduler(→ Execution Engine → Plugin)가 계산한 Execution Queue를 보여주고,
  * 항목별로 Mock 실행을 시도해 Execution Timeline(Queue 생성 → Ready → Execution Start →
- * Adapter 호출 → Completed)과 ExecutionResult를 확인할 수 있다.
+ * Plugin 호출 → Completed)과 ExecutionResult를 확인할 수 있다.
  *
  * PM 지시(Sprint 6): 실제 예약을 실행하지 않는다. 이 화면은 Execution Queue/Priority/
  * 상태 변화/Execution 순서를 확인하기 위한 Simulation 목적으로만 사용한다.
  * UI는 Execution Engine을 직접 호출하지 않고 Scheduler를 통해서만 접근한다.
+ * PM 지시(Sprint 7): 항목별로 Plugin 이름/Version/Capability를 함께 표시한다.
+ * (Plugin 이름/Version/Capability 조회는 Execution Engine이 아닌 Plugin Manager를
+ * 통해 직접 조회한다 - 정보 조회이며 실행 자체가 아니므로 Scheduler 경유 대상이 아니다.)
  */
 function Simulation() {
   const { showToast } = useToast()
@@ -81,6 +95,10 @@ function Simulation() {
                 item.context.reservationId
               )
               const run = runs[item.context.reservationId]
+              const version = pluginManager.getVersion(item.context.site)
+              const capabilities = pluginManager.getCapabilities(
+                item.context.site
+              )
 
               return (
                 <div
@@ -94,6 +112,20 @@ function Simulation() {
                     <span className="text-xs text-neutral-500">
                       우선순위 {item.context.priority}
                     </span>
+                  </div>
+
+                  {/* Plugin 정보: 이름 / Version / Capability */}
+                  <div className="mt-2 space-y-0.5 text-xs text-neutral-500">
+                    <p>
+                      Plugin: {SITE_LABELS[item.context.site]}
+                      {version ? ` (v${formatVersion(version)})` : ' (미설치)'}
+                    </p>
+                    <p>
+                      Capabilities:{' '}
+                      {capabilities.length > 0
+                        ? capabilities.map(getCapabilityLabel).join(', ')
+                        : '-'}
+                    </p>
                   </div>
 
                   {/* Execution Timeline: 실행 전에는 Queue/Ready 단계만 표시한다. */}
