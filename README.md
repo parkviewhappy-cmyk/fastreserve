@@ -597,3 +597,51 @@ TESTED로 기록했다. 결과: 12개 PASS(정적 코드 경로 검증), 2개 NO
 `resources/icon.png`, `resources/splash.png`, `README.md`, `package.json`(버전만)뿐이다.
 **`src/` 전체(모든 Domain/화면/컴포넌트)는 단 한 줄도 수정하지 않았다.** 새 Domain 추가 없음,
 Manager/Repository 구조 변경 없음, 기존 Adapter 구조 유지.
+
+## Sprint 15 (완료) — 첫 번째 실제 APK 생성/실기기 테스트 Sprint
+
+PM 지시: "FastReserve V1.0 RC1이 실제 안드로이드 휴대폰에서 설치되고 정상적으로 실행되는
+상태를 만드는 것"이 최종 목표. 이번 Sprint에서 실제 APK 생성/설치까지는 도달하지 못했으나,
+그 직전 단계까지 최대한 준비했고, 무엇이 왜 안 되는지를 정확히 기록했다(상세는
+`docs/APK_BUILD_GUIDE.md` "6. Sprint 15 점검 결과" 참고).
+
+### ①②③ Android 프로젝트 생성 / Android Studio 검증 / APK 생성
+
+`npx cap add android`를 실제로 실행했으나 `npm error 403`으로 실패했다(Sprint 8부터
+반복된 npm 레지스트리 차단과 동일). 이번 Sprint에서 추가로 `curl`로 직접 확인한 결과,
+이 샌드박스는 npm 레지스트리뿐 아니라 unpkg/jsdelivr/GitHub까지 프록시 레벨에서 차단하고
+있어(전부 `403 proxy CONNECT` 응답) 어떤 우회 경로도 없다는 것을 확인했다. Android SDK/
+Gradle도 설치되어 있지 않다. `android/` 네이티브 프로젝트를 수작업으로 통째로 작성하는
+방안도 검토했으나, (1) 실제 빌드 여부를 이 샌드박스에서 전혀 검증할 수 없고 (2) Capacitor
+CLI가 `android/` 폴더가 이미 있으면 실행을 거부하는 것으로 알려져 있어 PM이 로컬에서
+실제 명령을 실행할 때 오히려 방해가 될 수 있다는 판단에 따라 진행하지 않았다. 대신 실제로
+검증 가능한 산출물(아이콘/스플래시 리소스, Notification 연동 코드, 정확한 로컬 실행
+절차)에 집중했다.
+
+### ④ 휴대폰 설치 준비 / 권한 점검
+
+`docs/APK_BUILD_GUIDE.md` "6-3"에 권한 표를 갱신했다. `POST_NOTIFICATIONS`(Android 13+)가
+이번 Sprint에서 새로 필요해졌고, `SCHEDULE_EXACT_ALARM`/`WAKE_LOCK`/`FOREGROUND_SERVICE`는
+검토 후 불필요하다고 판단해 추가하지 않았다("불필요한 권한은 추가하지 않습니다" 원칙 준수).
+
+### ⑤ Notification (`@capacitor/local-notifications` 도입)
+
+`package.json`에 의존성을 추가하고, `src/utils/notification.ts`(신규)에
+`requestNotificationPermission()`/`sendNotice()`를 구현했다. `Capacitor.isNativePlatform()`으로
+네이티브(Android/iOS)/웹을 분기해 네이티브에서는 `LocalNotifications`, 웹에서는 기존 Web
+Notification API를 사용하며 두 경로는 동시에 실행되지 않는다(중복 발송 없음). Countdown/
+임계값 감지 로직(`ReadyScreen.tsx`)은 변경하지 않고 "어떻게 알림을 보낼지"만 교체했다.
+
+### ⑥ 실제 테스트 준비 상태
+
+`docs/Regression_Checklist.md` "Sprint 15 실기기 테스트 준비 상태" 섹션에 13개 항목 전부
+기록했다. APK가 없어 13개 전부 NOT TESTED이며, 각 항목의 코드 준비 상태(정적 검증
+PASS 여부)를 구분해 실기기 테스트 시 우선순위를 제공했다.
+
+### ⑦⑧ 버그 수정 / Architecture 유지
+
+새로 발견된 버그는 없다(`BUG-004` 등록하지 않음). `git diff develop -- src/domain` 결과
+0건 — Domain 코드는 전혀 건드리지 않았다. 이번 Sprint에서 실제로 수정한 소스 코드는
+`src/pages/ReadyScreen/ReadyScreen.tsx`(Notification 발송 경로 교체)와 신규 파일
+`src/utils/notification.ts`(Domain이 아닌 기존 `src/utils/` 관례를 따르는 순수 유틸)뿐이다.
+새 Domain 추가 없음, Manager/Repository/Adapter 구조 변경 없음.

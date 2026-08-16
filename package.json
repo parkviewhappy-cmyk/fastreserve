@@ -1,7 +1,7 @@
 {
   "name": "fastreserve",
   "private": true,
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,7 +20,8 @@
     "react-router-dom": "^6.26.0",
     "@capacitor/core": "^6.1.2",
     "@capacitor/android": "^6.1.2",
-    "@capacitor/app": "^6.0.1"
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/local-notifications": "^6.1.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
