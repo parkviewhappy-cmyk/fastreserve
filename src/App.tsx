@@ -6,9 +6,11 @@ import SiteSettings from '@/pages/SiteSettings'
 import Simulation from '@/pages/Simulation'
 import PluginSettings from '@/pages/PluginSettings'
 import ReadyScreen from '@/pages/ReadyScreen'
+import Discovery from '@/pages/Discovery'
 
 /**
  * Sprint 8: 예약 준비 화면(/ready/:id) 라우트를 추가한다.
+ * Sprint 11: 공연 찾기(Discovery, /discovery) 라우트를 추가한다(Ticket Discovery Center).
  * 이후 Sprint에서 History, Setting 라우트를 추가한다.
  */
 function App() {
@@ -21,6 +23,7 @@ function App() {
       <Route path="/simulation" element={<Simulation />} />
       <Route path="/plugin" element={<PluginSettings />} />
       <Route path="/ready/:id" element={<ReadyScreen />} />
+      <Route path="/discovery" element={<Discovery />} />
     </Routes>
   )
 }
