@@ -371,7 +371,7 @@ PM은 Sprint 10을 전체 승인했고, "기능 추가보다 프로젝트 방향
 
 **결론**: 이 프로젝트가 지금 바로 연동할 수 있는, 문서화되고 제3자에게 공개된 API/RSS는 확인되지 않았다. 공개 웹페이지(오픈예정 공지 게시판)는 존재하지만, 이를 프로그램으로 긁어오는 것은 PM 지시("크롤링 우회 금지", "공식적으로 공개된 정보만 사용")의 취지에 비추어 볼 때 안전한 방식이라고 판단하지 않았다 — 문서화된 API/RSS 계약이 없는 상태에서의 자동 수집은 "크롤링"과 실질적으로 같고, 인터파크의 명시적 허가 없이는 이용약관 위반 소지가 있다.
 
-**선택한 방식과 이유**: `SessionChecker`(Sprint 8)와 동일한 "교체 가능한 Provider" 패턴을 그대로 적용해 `DiscoveryDataProvider` 인터페이스를 만들고, 현재는 `mockDiscoveryDataProvider`(Mock 데이터)를 기본값으로 연결했다. 실제 서비스 단계에서 인터파크와 공식 데이터 제휴(API 키 발급 등)를 맺으면, `DiscoveryManager` 생성자에 실제 Provider를 주입하는 것만으로 교체 가능하며 Repository/Manager/화면 코드는 전혀 손댈 필요가 없다. 이 방식은 실제 서비스 동작을 정직하게 표시하면서도(모든 Discovery 아이템에 `source: 'MOCK'` 표시) 향후 확장 경로를 막지 않는다.
+**선택한 방식과 이유**: `SessionChecker`(Sprint 8)와 동일한 "교체 가능한 Provider" 패턴을 그대로 적용해 `DiscoveryDataProvider` 인터페이스를 만들고, 현재는 `mockDiscoveryDataProvider`(Mock 데이터)를 기본값으로 연결했다. **이 Mock 구현체는 임시(placeholder) 구현이며 실제 서비스에 사용할 목적이 아니다** — 실제 공연 정보를 담고 있지 않고, 모든 항목에 `source: 'MOCK'`이 명시되어 있으며, 실제 서비스 단계에서 인터파크와 공식 데이터 제휴(API 키 발급 등)를 맺으면 `DiscoveryManager` 생성자에 실제 Provider를 주입하는 것만으로 교체되어야 한다(Repository/Manager/화면 코드는 손댈 필요 없음). **비공식 스크래핑(문서화된 API/RSS 계약 없이 `tickets.interpark.com` 웹페이지를 프로그램으로 읽어오는 방식)은 이 프로젝트의 기본 구현 대상이 아니다** — 1단계 조사에서 확인한 공개 "오픈예정" 공지 게시판이 있더라도, 명시적인 API/제휴 계약 없이 이를 자동 수집하는 기능은 구현하지 않는다(PM 지시 "크롤링 우회 금지"의 연장선).
 
 **2단계 Architecture**: 기존 Reservation/Plugin/Session/Scheduler/Simulation/Ready/Execution Domain은 코드 한 줄도 수정하지 않았다(`git diff develop --stat` 확인, 아래 "변경 파일" 참고). 새 Domain은 지시대로 Discovery 1개만 추가했다.
 
@@ -410,3 +410,17 @@ PM은 Sprint 10을 전체 승인했고, "기능 추가보다 프로젝트 방향
 1. 1단계 조사 결과, 인터파크의 공식 API는 이 프로젝트와 무관한 쇼핑(오픈마켓) API뿐이었고 티켓 오픈 일정용 공식 API/RSS는 찾지 못했다. Mock Provider로 우선 구현하는 이번 방향이 맞는지, 혹은 인터파크와 별도의 공식 데이터 제휴를 추진할지 확인 부탁드린다.
 2. `tickets.interpark.com/contents/notice`(오픈예정 공지 게시판)는 사람이 보는 공개 웹페이지로 존재한다. 향후 이 페이지를 프로그램으로 읽어오는 것을 "공식적으로 공개된 정보 사용"으로 볼 수 있을지, 아니면 여전히 문서화된 API/제휴 없이는 시도하지 않아야 하는지 방향을 확인 부탁드린다(현재 구현에는 포함하지 않았다).
 3. Discovery Mock 데이터는 아이유/임영웅/세븐틴 등 예시 아티스트명을 사용했다. 실제 서비스 전환 전에 예시 데이터를 그대로 노출해도 괜찮을지, 혹은 더 일반적인 이름(예: "아티스트 A")으로 바꿀지 확인 부탁드린다.
+
+### Sprint 11 PM Review 수정 (완료)
+
+PM이 요청한 6개 항목 모두 문서/TODO 주석 추가만으로 반영했다. **Architecture는 변경하지 않았고, 기존 코드는 삭제하지 않았으며, Discovery 구조(Repository/Manager/Model/Provider/Rule/Types)도 그대로 유지했다. 기능 동작은 하나도 바뀌지 않았다.**
+
+- [x] `src/domain/discovery/provider/discovery.provider.ts`에 TODO 추가 — 지금은 `DiscoveryDataProvider` 하나(Mock)만 사용하지만, 향후 Official/Manual/Favorite 세 종류의 Provider를 조합하는 Composite Provider 구조로 확장할 수 있음을 문서화. `DiscoveryDataProvider` 타입/`mockDiscoveryDataProvider`/`DiscoveryManager`의 실제 코드는 변경하지 않았다(여전히 단일 Provider를 주입받는 구조 그대로)
+- [x] README "선택한 방식과 이유" 문단에 Mock 구현체가 **임시(placeholder)**이며 실제 서비스용이 아님을 명확히 기술
+- [x] README 같은 문단에 **비공식 스크래핑은 기본 구현 대상이 아님**을 명시(공개 웹페이지가 존재해도 문서화된 API/제휴 계약 없이는 자동 수집 기능을 구현하지 않는다)
+
+**변경 파일**: `src/domain/discovery/provider/discovery.provider.ts`(TODO 주석만 추가), `README.md`
+
+**삭제된 파일**: 없음(0개)
+
+**Architecture 영향**: 없음 — 새 Provider 구현체나 Composite 클래스를 실제로 추가하지 않았다. `DiscoveryDataProvider` 타입 시그니처, `mockDiscoveryDataProvider`의 동작, `DiscoveryManager` 생성자 시그니처 모두 이전과 동일하다.
