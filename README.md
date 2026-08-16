@@ -8,6 +8,27 @@ APK 및 다른 예약 사이트로 확장합니다.
 
 현재 버전: v0.5.0
 
+## Project Goal
+
+**FastReserve는 자동 예매 프로그램이 아닙니다.**
+
+FastReserve는 예약 성공률을 높이기 위한 **Reservation Assistant**입니다.
+
+최종 예약 시작 및 예매 진행은 항상 사용자가 직접 수행합니다.
+
+본 프로젝트는 다음을 지원하는 것을 목표로 합니다.
+
+- 예약 준비
+- 로그인 상태 확인
+- 플러그인 상태 확인
+- 예약 페이지 진입
+- 예약 일정 관리
+- 예약 준비 상태 점검
+
+(PM Review 반영, Sprint 10 수정: 프로젝트 방향을 README 최상단에 명시적으로 기록한다.
+Sprint 10에서 "자동 실행" 대신 "준비 지원"으로 방향을 전환한 배경은 아래 "Sprint 10 (완료)"
+섹션에 상세히 기록되어 있다.)
+
 ## 개발 원칙
 
 - MVP First
@@ -322,3 +343,19 @@ PM 지시에 따라 이번 Sprint도 새로운 Engine/Manager/Domain을 추가�
 1. `ExecutionResult.Failed`/`Retry`는 현재 `prepareExecution()`이 실제로 반환하지 않는 값이 되었다(Enum 멤버는 유지). 향후 "준비 확인 자체가 실패하는 경우"(예: Plugin healthCheck 실패)를 별도로 반환하도록 확장할지, 아니면 현재처럼 Waiting/Skipped로만 표현할지 방향을 확인 부탁드린다.
 2. 알림(Notification)은 브라우저 권한이 "허용"된 경우에만 동작하며, 권한 요청은 Ready Screen 최초 진입 시 1회 자동으로 뜬다(사용자가 "차단"을 누르면 이후 알림 없이 조용히 동작). 이 정책(자동으로 권한 요청 팝업을 띄우는 것)이 UX상 괜찮은지, 아니면 별도의 "알림 켜기" 버튼을 눌러야 요청하도록 바꿀지 확인 부탁드린다.
 3. 예약 준비 점수의 4개 항목(로그인/Plugin/인터넷/URL) 가중치를 동일하게 25점씩 두었다. 항목별 가중치를 다르게 둘지(예: 로그인 상태를 더 중요하게) 확인 부탁드린다.
+
+### Sprint 10 PM Review 수정 (완료)
+
+PM은 Sprint 10을 전체 승인했고, "기능 추가보다 프로젝트 방향을 명확히 하고 향후 확장성을 확보하는 수준"의 문서/주석 전용 수정만 요청했다. **코드 로직/동작은 하나도 변경하지 않았다.**
+
+- [x] README 최상단에 "Project Goal" 섹션 추가 — FastReserve는 자동 예매 프로그램이 아니라 예약 성공률을 높이기 위한 Reservation Assistant이며, 최종 예약 시작/예매 진행은 항상 사용자가 직접 수행함을 명시
+- [x] `src/pages/ReadyScreen/readinessScore.ts`에 TODO 주석 추가 — 현재 4항목 균등 배점(25점×4)을 유지하되, 향후 가중치 방식(예: Plugin 40 / Session 30 / Internet 20 / URL 10)으로 확장할 수 있음을 기록. 로직(`POINTS_PER_ITEM = 25`)은 변경하지 않았다
+- [x] `src/domain/execution/types.ts`(`ExecutionResult` 주석)에 TODO 추가 — Failed/Retry는 삭제하지 않고, 향후 History의 Failure Analysis/Retry Statistics 기능에서 사용할 예정임을 명시. `prepareExecution()`은 여전히 이 값을 반환하지 않는다(동작 변경 없음)
+- [x] `src/pages/ReadyScreen/ReadyScreen.tsx`의 Notification 권한 요청 `useEffect` 위에 TODO 추가 — 향후 "예약 알림을 사용하시겠습니까?" 안내 화면을 먼저 보여주고 사용자가 "허용"을 선택했을 때만 권한을 요청하도록 변경할 예정임을 기록. 현재 코드(화면 진입 시 자동 `Notification.requestPermission()` 호출)는 그대로 유지했다
+- [x] Architecture 변경 없음 확인 — Execution/Plugin/Session/Scheduler/Simulation/Reservation/Ready 각 Domain 폴더/파일 구조에 삭제·리팩토링·신규 Engine 생성이 없음을 `git diff --stat`으로 확인(TODO 주석과 README 문구 추가만 발생)
+
+**변경 파일**: `README.md`, `src/pages/ReadyScreen/readinessScore.ts`(TODO 주석), `src/domain/execution/types.ts`(TODO 주석), `src/pages/ReadyScreen/ReadyScreen.tsx`(TODO 주석)
+
+**삭제 파일**: 없음(0개)
+
+**Architecture 영향**: 없음 — 기존 7개 Domain(Execution/Plugin/Session/Scheduler/Simulation/Reservation/Ready) 모두 유지, 신규 Engine/Manager 없음, 기존 로직 리팩토링 없음

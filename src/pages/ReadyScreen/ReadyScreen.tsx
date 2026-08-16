@@ -138,6 +138,11 @@ function ReadyScreen() {
   })
 
   // 알림 권한을 최초 1회 요청한다(사용자의 브라우저 허용이 필요하며, 자동 승인되지 않는다).
+  //
+  // TODO(PM Review, Sprint 10 수정): 화면 진입 시 자동으로 Notification.requestPermission()을
+  // 호출하는 대신, "예약 알림을 사용하시겠습니까?" 안내 화면(Dialog 등 기존 공통 컴포넌트 재사용
+  // 예정)을 먼저 보여주고, 사용자가 "허용"을 직접 선택했을 때만 권한을 요청하는 방식으로
+  // 변경할 예정이다. 이번 수정에서는 아래 자동 요청 로직을 그대로 유지한다(동작 변경 없음).
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {

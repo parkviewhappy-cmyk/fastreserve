@@ -9,6 +9,11 @@
  * 점수만 계산한다. 실제 상태 조회는 호출하는 화면(ReadyScreen/Home)이 담당한다.
  *
  * 구성 요소(PM 지시, 각 25점): 로그인 상태 / Plugin 상태 / 인터넷 상태 / 예약 URL 등록 여부.
+ *
+ * TODO(PM Review, Sprint 10 수정): 현재는 4개 항목을 동일하게 25점씩(균등 가중치) 채점한다.
+ * 향후 항목별 중요도에 따라 가중치 방식으로 변경할 예정이다(예: Plugin 40 / Session 30 /
+ * Internet 20 / URL 10). 가중치 확정 전까지는 현재 로직(POINTS_PER_ITEM = 25 균등 배분)을
+ * 그대로 유지한다 - 이번 수정에서는 로직을 변경하지 않는다.
  */
 
 export interface ReadinessChecklistItem {
