@@ -645,3 +645,35 @@ PASS 여부)를 구분해 실기기 테스트 시 우선순위를 제공했다.
 `src/pages/ReadyScreen/ReadyScreen.tsx`(Notification 발송 경로 교체)와 신규 파일
 `src/utils/notification.ts`(Domain이 아닌 기존 `src/utils/` 관례를 따르는 순수 유틸)뿐이다.
 새 Domain 추가 없음, Manager/Repository/Adapter 구조 변경 없음.
+
+## Sprint 16 (완료) — V1.0 Comprehensive Validation
+
+PM 지시: "Android APK 생성 전에 모든 기능의 안정성을 PC(Web) 환경에서 충분히 검증"하는
+Sprint. 신규 기능 추가 없이 ①~⑦ 기능 검증, 8개 예외 상황 테스트, 성능/코드품질 점검,
+Sprint 1~15 회귀 테스트를 진행했다(상세는 `docs/Regression_Checklist.md` "Sprint 16
+종합 검증" 섹션 참고).
+
+### 발견한 것
+
+- **BUG-004(High, 수정 완료)**: Reservation/Session/SiteAccount/PluginRegistry/Discovery
+  5개 Repository 전부 LocalStorage "쓰기"(`setItem`)에 예외 처리가 없었다(읽기는 이미
+  보호되어 있었음). 저장 공간 초과나 브라우저 저장 차단 시 이 앱에 Error Boundary가
+  없어 화면 전체가 깨질 수 있었다. PM이 명시한 "LocalStorage 초기화" 예외 시나리오
+  테스트 중 발견해 즉시 수정했다(성공 경로 동작/반환값은 변경하지 않고, 실패 시
+  조용히 무시하도록만 변경 — 기존 읽기 쪽과 동일한 방어 패턴).
+- **BUG-005(Low, 기록만)**: `Session.expiresAt` 필드가 사실상 항상 `null`로 저장되어
+  "만료 예정 시각" 판정에 실제로는 쓰이지 않는다(현재 상태 기반 만료 판정은 정상
+  동작). 새 기능(실제 만료 시각 계산)이 필요한 범위라 이번 Sprint(버그 수정만 허용)
+  에서는 수정하지 않았다.
+- **성능/코드품질**: `console.*` 잔여 없음, 미사용 import 없음, 신규 중복 타입 없음,
+  `setInterval`/`addEventListener` 전부 cleanup 짝 확인(메모리 누수 없음), 새로 추가된
+  비동기 코드(`src/utils/notification.ts`, Sprint 15)의 Race Condition/에러 처리 재점검
+  — 문제 없음.
+- **History**: 여전히 미구현(Sprint 13부터 동일하게 보고). 신규 기능 추가 금지 원칙에
+  따라 이번 Sprint에서도 구현하지 않았다.
+
+### 변경 범위
+
+5개 Repository 파일의 쓰기 메서드에 `try/catch`만 추가했다. Domain 구조/Manager/
+Repository/Adapter 인터페이스는 전혀 변경하지 않았다(기존 클래스 내부 구현만 수정,
+새 클래스 없음). UI 변경 없음.

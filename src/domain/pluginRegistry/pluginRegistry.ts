@@ -70,7 +70,12 @@ export class PluginRegistry {
 
   private writeAll(records: PluginRecord[]): void {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    } catch {
+      // BUG-004(docs/BUG_TRACKER.md, Sprint 16 발견/수정): LocalStorage 쓰기 실패를
+      // 흡수한다(읽기 쪽과 동일한 보호 패턴). 상세 사유는 reservation.repository.localStorage.ts 참고.
+    }
   }
 }
 
