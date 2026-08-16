@@ -143,6 +143,12 @@ function ReadyScreen() {
   // 호출하는 대신, "예약 알림을 사용하시겠습니까?" 안내 화면(Dialog 등 기존 공통 컴포넌트 재사용
   // 예정)을 먼저 보여주고, 사용자가 "허용"을 직접 선택했을 때만 권한을 요청하는 방식으로
   // 변경할 예정이다. 이번 수정에서는 아래 자동 요청 로직을 그대로 유지한다(동작 변경 없음).
+  //
+  // TODO(PM Review, Sprint 13 수정): Android(Capacitor WebView)에서는 순수 Web
+  // Notification API가 시스템 알림으로 안정적으로 뜨지 않을 수 있다(docs/APK_BUILD_GUIDE.md
+  // 참고). PM 승인: Sprint 15에서 `@capacitor/local-notifications` 플러그인을 도입해
+  // Android에서도 안정적으로 동작하도록 교체할 예정이다. 이번 Sprint(13)에서는 코드를
+  // 변경하지 않는다.
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {

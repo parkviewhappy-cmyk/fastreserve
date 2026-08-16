@@ -4,6 +4,10 @@ import type { Reservation } from '@/types/reservation'
 /**
  * Mock Reservation Data (3건).
  * Sprint 2 범위: 실제 저장소 연동 전, 화면/도메인 로직 검증을 위한 임시 데이터.
+ *
+ * BUG-003(docs/BUG_TRACKER.md, Sprint 13 발견 / PM Review 확정): `MockReservationRepository`
+ * 전용으로만 쓰이며, 그 상위 `ReservationService`가 Sprint 3 이후 미사용 상태다. PM 결정에
+ * 따라 V1.0에서는 삭제하지 않고 유지하며, V2.0 Architecture Cleanup에서 다시 검토한다.
  * PM 제공 예시에 없는 값(공연 URL, 메모 등)은 임의의 플레이스홀더로 채웠다.
  *
  * PM Review 반영: id는 UUID v4 형식, 날짜/시간은 ISO 8601 형식으로 통일했다.
