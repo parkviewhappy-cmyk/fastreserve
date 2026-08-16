@@ -11,6 +11,7 @@ import { formatVersion } from '@/domain/plugin'
 import { getNow, parseLocalDateTime } from '@/utils/time'
 import { SiteType } from '@/types/reservation'
 import { computeReadinessScore, getReadinessLabel } from './readinessScore'
+import { requestNotificationPermission, sendNotice } from '@/utils/notification'
 
 const SITE_LABELS: Record<SiteType, string> = {
   [SiteType.Interpark]: 'Interpark',
@@ -55,19 +56,10 @@ function formatUrgentCountdown(openTime: string, now: Date): string | null {
 }
 
 /**
- * 브라우저 알림을 보낸다(권한이 이미 허용된 경우에만).
- * 자동 예약/자동 클릭과 무관한, 사용자에게 상태를 알리는 정보성 알림이다.
+ * 알림 발송은 Sprint 15부터 `src/utils/notification.ts`의 공유 유틸(`sendNotice`)을 사용한다.
+ * 네이티브(Android/iOS)에서는 `@capacitor/local-notifications`, 웹 브라우저에서는 기존 Web
+ * Notification API로 자동 분기하며 두 경로가 동시에 실행되지는 않는다(중복 발송 없음).
  */
-function sendNotice(title: string, body: string) {
-  if (typeof window === 'undefined' || !('Notification' in window)) return
-  if (Notification.permission === 'granted') {
-    try {
-      new Notification(title, { body })
-    } catch {
-      // 알림 생성 실패는 화면 동작에 영향을 주지 않는다(무시).
-    }
-  }
-}
 
 /** 진동 알림(지원 기기에서만 동작, 실패해도 무시). */
 function vibrate(pattern: number | number[]) {
@@ -137,26 +129,20 @@ function ReadyScreen() {
     1: false,
   })
 
-  // 알림 권한을 최초 1회 요청한다(사용자의 브라우저 허용이 필요하며, 자동 승인되지 않는다).
+  // 알림 권한을 최초 1회 요청한다(사용자의 허용이 필요하며, 자동 승인되지 않는다).
   //
-  // TODO(PM Review, Sprint 10 수정): 화면 진입 시 자동으로 Notification.requestPermission()을
-  // 호출하는 대신, "예약 알림을 사용하시겠습니까?" 안내 화면(Dialog 등 기존 공통 컴포넌트 재사용
-  // 예정)을 먼저 보여주고, 사용자가 "허용"을 직접 선택했을 때만 권한을 요청하는 방식으로
-  // 변경할 예정이다. 이번 수정에서는 아래 자동 요청 로직을 그대로 유지한다(동작 변경 없음).
+  // TODO(PM Review, Sprint 10 수정, 미해결): 화면 진입 시 자동으로 권한을 요청하는 대신,
+  // "예약 알림을 사용하시겠습니까?" 안내 화면(Dialog 등 기존 공통 컴포넌트 재사용 예정)을
+  // 먼저 보여주고, 사용자가 "허용"을 직접 선택했을 때만 권한을 요청하는 방식으로 변경할
+  // 예정이다. 이번 Sprint(15)에서도 자동 요청 로직 자체는 유지한다(동작 변경 없음).
   //
-  // TODO(PM Review, Sprint 13 수정): Android(Capacitor WebView)에서는 순수 Web
-  // Notification API가 시스템 알림으로 안정적으로 뜨지 않을 수 있다(docs/APK_BUILD_GUIDE.md
-  // 참고). PM 승인: Sprint 15에서 `@capacitor/local-notifications` 플러그인을 도입해
-  // Android에서도 안정적으로 동작하도록 교체할 예정이다. 이번 Sprint(13)에서는 코드를
-  // 변경하지 않는다.
+  // PM 지시(Sprint 13 PM Review 승인, Sprint 15 구현 완료): Android(Capacitor WebView)에서는
+  // 순수 Web Notification API가 시스템 알림으로 안정적으로 뜨지 않을 수 있어(docs/
+  // APK_BUILD_GUIDE.md 참고), `@capacitor/local-notifications`를 도입했다. 권한 요청 자체는
+  // `src/utils/notification.ts`의 `requestNotificationPermission()`이 네이티브/웹 여부를
+  // 판단해 알맞은 API를 호출하므로, 이 화면은 플랫폼을 직접 분기하지 않는다.
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().catch(() => {
-          // 권한 요청 실패/거부는 무시한다(정보성 기능이므로 화면 동작에 영향 없음).
-        })
-      }
-    }
+    void requestNotificationPermission()
   }, [])
 
   // 임계값 통과 시 1회성 알림 + (1분 전) 진동 + (5분 전) Plugin 재확인.
@@ -169,7 +155,7 @@ function ReadyScreen() {
     for (const threshold of NOTICE_THRESHOLDS_MIN) {
       if (!notifiedRef.current[threshold] && diffMin <= threshold) {
         notifiedRef.current[threshold] = true
-        sendNotice(
+        void sendNotice(
           '예약 준비 알림',
           `"${reservation.title}" 예약 시작 ${threshold}분 전입니다.`
         )

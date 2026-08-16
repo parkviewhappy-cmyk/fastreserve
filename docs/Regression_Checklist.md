@@ -63,3 +63,30 @@ NOT TESTED로 표시했다.
 결론: 14개 항목 중 12개 PASS(정적 코드 검증), 2개는 실기기/실행 환경이 있어야 확정 가능한
 NOT TESTED(Countdown 백그라운드 동작, Notification 실제 발생 — 둘 다 기존에 이미 알려진
 제약이며 Sprint 15 계획에 포함되어 있다). 이번 Sprint에서 새로 발견된 버그는 없다.
+
+## Sprint 15 실기기 테스트 준비 상태 (13개 항목)
+
+이번 Sprint에서 실제 APK를 생성하지 못했으므로(`docs/APK_BUILD_GUIDE.md` "6-1" 참고),
+아래 13개 항목 전부 실기기 테스트 자체는 **NOT TESTED**다. 대신 각 항목이 "코드/설정
+준비가 얼마나 되어 있는지"를 구분해서 기록했다 — PM이 실제 APK를 만들었을 때 무엇을
+중점적으로 확인해야 하는지 우선순위를 제공하기 위함이다.
+
+| # | 항목 | 실기기 테스트 결과 | 준비 상태 |
+|---|---|---|---|
+| 1 | 앱 설치 | NOT TESTED | APK 자체가 없어 설치 시도 불가. `capacitor.config.ts`/App ID/아이콘·스플래시 소스는 준비 완료 |
+| 2 | 앱 실행 | NOT TESTED | 동일 이유 |
+| 3 | Discovery | NOT TESTED | 코드 경로 정적 검증은 Sprint 14에서 PASS(로직 변경 없음) |
+| 4 | Reservation | NOT TESTED | 코드 경로 정적 검증 PASS(로직 변경 없음) |
+| 5 | Ready Screen | NOT TESTED | 코드 경로 정적 검증 PASS. Notification 발송 경로만 이번 Sprint에 교체(6-2) |
+| 6 | Countdown | NOT TESTED | 로직 자체는 변경 없음(1초 `setInterval`). WebView에서의 타이머 정확도/절전 영향은 실기기 확인 필요(기존 TODO) |
+| 7 | Plugin | NOT TESTED | 코드 경로 정적 검증 PASS(로직 변경 없음) |
+| 8 | Session | NOT TESTED | 코드 경로 정적 검증 PASS(로직 변경 없음) |
+| 9 | Notification | NOT TESTED | **이번 Sprint의 핵심 변경**. `@capacitor/local-notifications` 연동 코드는 작성 완료(정적 검증 PASS)했으나 `npm install` 불가로 실제 동작 확인 전무. 실기기 테스트 시 최우선 확인 대상 |
+| 10 | LocalStorage | NOT TESTED | 코드 경로 정적 검증 PASS. Android WebView 저장소는 앱 전용으로 유지되는 것이 표준 동작(Sprint 13 결론과 동일) |
+| 11 | 화면 회전 | NOT TESTED | Capacitor 기본 `MainActivity`는 보통 `android:configChanges`로 회전 시 Activity 재생성을 막아 React 상태를 보존하는 것이 표준 동작으로 알려져 있으나, `android/` 폴더 자체가 없어 이 프로젝트의 실제 `AndroidManifest.xml` 설정을 확인할 수 없다(TODO) |
+| 12 | 백그라운드 복귀 | NOT TESTED | Sprint 13에 이미 기록된 TODO(`@capacitor/app`의 `App.addListener('resume', ...)` 미구현)와 동일한 리스크가 남아 있다. 이번 Sprint에서도 구현하지 않았다(PM 지시 "새로운 기능 추가하지 않는다" 범위 밖) |
+| 13 | 앱 재실행 | NOT TESTED | LocalStorage는 앱을 완전히 종료 후 재실행해도 유지되는 것이 Android WebView의 표준 동작이나, 실제 확인은 되지 않았다 |
+
+**결론**: 13개 항목 모두 NOT TESTED. 이 중 9번(Notification)이 이번 Sprint의 핵심 변경사항이므로
+실기기 테스트 시 최우선으로 확인해야 하고, 11/12번(화면 회전/백그라운드 복귀)은 기존에
+알려진 리스크가 그대로 남아있어 함께 확인이 필요하다.
