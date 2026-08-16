@@ -178,3 +178,9 @@ Sprint에서 전수 확인) 위 6단계를 그대로 재현할 수는 없었지�
 | LocalStorage 유지 | 코드 관점 PASS(Sprint 16 BUG-004 수정으로 쓰기 실패 시에도 안전) — 실제 브라우저 확인은 NOT TESTED |
 | 인터넷 끊김 | 코드 관점 PASS(`navigator.onLine` 처리 확인, Sprint 16과 동일) — 실제 브라우저 확인은 NOT TESTED |
 | Notification 권한 | 코드 관점 PASS(권한 미허용 시 조용히 무시하는 로직 확인) — 실제 브라우저 권한 팝업 확인은 NOT TESTED |
+
+## Sprint 18: 회귀 재확인
+
+Sprint 17 이후 `src/` 변경이 없어 Node.js 실제 실행 기반 검증을 재실행한 결과도 동일했다
+(79개 파일 중 78개 PASS, 1개는 `@capacitor/core` 미설치로 인한 예상된 결과, 괄호 균형
+114개 파일 전부 정상). 회귀 없음.
