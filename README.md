@@ -712,3 +712,22 @@ Node.js 22의 `--experimental-transform-types`로 **TypeScript 코드를 실제�
 `docs/TESTING.md`, `docs/Regression_Checklist.md`, `scripts/alias-loader.mjs`(신규,
 검증 도구일 뿐 프로덕션 코드 아님), `package.json`(버전만). **`src/` 변경 없음** —
 이번 Sprint에서 새로 발견된 실행 오류가 없었기 때문이다.
+
+## Sprint 18 (완료) — Web Runtime 검증 방식 전환
+
+PM 지시: "실제 로컬 PC 환경에서 FastReserve Web 버전이 정상 실행되는지 검증"이 목표였다.
+`npm install`을 다시 시도했고, FastReserve와 무관한 새 빈 프로젝트에서 `react` 패키지
+단독 설치도 테스트했다 — 둘 다 동일하게 `403 Forbidden`으로 실패했다. 이 결과는 이
+샌드박스의 네트워크 자체가 npm 레지스트리(및 GitHub/PyPI 등 외부 전체)에 접근할 수
+없다는 뜻이며, `package.json`을 어떻게 고쳐도 해결되지 않는다(Sprint 15~17과 동일
+결론, 이번에 완전히 확정했다).
+
+PM과 상의한 결과, **다음 Sprint부터는 PM이 로컬 PC에서 직접 `npm install`/`npm run
+dev`/`npm run build`를 실행하고, 실제 오류 메시지를 공유하면 그것을 근거로 수정하는
+방식**으로 전환하기로 했다. 이를 위해 `docs/LOCAL_RUN_GUIDE.md`(신규)를 작성했다 —
+실행 절차, 문제 발생 시 무엇을 캡처해서 공유해야 하는지, Chrome 기준 기능 점검
+체크리스트(9번 항목 포함)를 정리했다.
+
+이번 Sprint에서 `src/` 변경은 없다(실제 실행 오류가 아직 확인되지 않아 수정할 대상이
+없음). Sprint 17 이후 회귀도 없음을 재확인했다(78/79 파일 실제 실행 검증 PASS, 나머지
+1개는 예상된 외부 패키지 미설치).
