@@ -23,3 +23,9 @@ PM 지시(Sprint 13, ⑤)에 따라 만든 재사용 가능한 버그 기록 양
 ## PM Review 결정 기록
 
 - **BUG-003(2026, Sprint 13 PM Review)**: 삭제하지 않는다. V1.0에서는 유지하고, V2.0 Architecture Cleanup에서 다시 검토한다. Status를 `Won't Fix (V1.0)`로 표기했다(향후 V2.0에서 재검토될 수 있으므로 영구 `Won't Fix`는 아니다).
+
+## Sprint 14 점검 결과
+
+Sprint 14(실사용 가능한 V1.0 RC1 준비) 기간 중 Build 검증(Import 경로/괄호 균형/금지 패턴/
+중복 타입/Dead Code 참조) 및 14개 항목 통합 테스트(`docs/Regression_Checklist.md` 참고)를
+진행했으나, **새로 발견된 버그는 없다.** 따라서 `BUG-004`는 이번 Sprint에서 등록하지 않는다.
