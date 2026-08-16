@@ -41,6 +41,13 @@ Sprint 10에서 "자동 실행" 대신 "준비 지원"으로 방향을 전환한
 - 유지보수가 쉬운 구조
 - 무료 환경만 사용 (Git, GitHub, React, TypeScript, Vite, TailwindCSS)
 
+**PM 지시(Sprint 12 PM Review, Sprint 13부터 적용)**: 이제부터 모든 Sprint는
+**Web → APK → 실기기 테스트**를 기본 절차로 적용한다. 지금까지는 "APK Later"
+원칙에 따라 웹앱만 다뤘지만, Sprint 13부터는 각 Sprint에서 구현한 기능을 웹으로
+먼저 완성한 뒤 Android APK로 빌드하고 실제 기기에서 테스트하는 단계까지 포함한다.
+이 절차를 적용하려면 Capacitor 등 모바일 패키징 도구 도입이 필요하며, 구체적인
+도입 시점/방식은 Sprint 13에서 PM 지시에 따라 진행한다.
+
 ## 기술 스택
 
 - React 18 + TypeScript
@@ -477,3 +484,13 @@ PM이 요청한 6개 항목 모두 문서/TODO 주석 추가만으로 반영했�
 1. "Sprint 완료 조건" 체크리스트 중 **Android APK 실행**과 **History 저장 정상**은 이번 Sprint 범위(Discovery 안정화)와 무관하고, 애초에 프로젝트에 아직 존재하지 않는 기능(APK 패키징 파이프라인, History Domain)이다. 이 두 항목을 매 Sprint 공통 체크리스트로 계속 유지할지, 아니면 해당 기능이 실제로 구현된 이후부터 적용할지 확인 부탁드린다.
 2. Unit/Integration Test 코드는 작성했지만, npm 레지스트리 차단으로 이 환경에서는 실행할 수 없다. PM이 로컬에서 `npm install && npm test`를 실행해 실제 통과 여부를 확인해주셔야 다음 Sprint로 안전하게 진행할 수 있다.
 3. v1.0 범위(인터파크/YES24/멜론티켓/티켓링크 + 국내 항공 7개사)가 확정되었는데, 현재 Reservation/Plugin/URL 검증 로직은 인터파크(`tickets.interpark.com`)만 지원한다. 나머지 사이트/항공사 지원은 언제부터, 어떤 순서로 진행할지 다음 Sprint 계획을 확인 부탁드린다.
+
+### Sprint 12 PM Review 승인
+
+PM이 Sprint 12를 승인했다. Sprint 12에서 남긴 PM Review 요청 3건에 대한 답변/현재 상태를 기록한다.
+
+1. **Android APK 실행 / History 저장 정상 체크리스트 항목**: PM 답변 — **Sprint 13부터 Web → APK → 실기기 테스트를 기본 절차로 적용**한다(위 "개발 원칙" 섹션에 반영). 즉 Android APK 실행 항목은 Sprint 13부터 정식으로 매 Sprint 체크리스트에 포함된다. History 저장 정상 항목은 History Domain이 아직 구현되지 않았으므로(계속 `export {}` placeholder), 실제 History 기능이 추가되기 전까지는 해당 사항 없음으로 유지한다.
+2. **Unit/Integration Test 로컬 실행 확인**: PM 승인으로 Sprint 12가 통과되었다. 이 개발 환경(샌드박스)은 여전히 npm 레지스트리에 접근할 수 없어 `vitest`를 직접 실행하지 못한다는 제약은 Sprint 13 이후에도 동일하게 적용된다 — 앞으로도 각 Sprint의 테스트 코드는 이 환경에서 정적 검증(Python 병행 재구현 등)까지만 수행하고, 실제 실행 결과 확인은 계속 PM 로컬 환경에 의존한다.
+3. **v1.0 범위(다른 예매 사이트/항공사) 지원 순서**: 이번 PM Review에서는 별도 답변이 없었다. 다음 Sprint 지시에서 구체적인 우선순위를 받는 대로 반영한다(현재는 인터파크 단일 지원 그대로 유지).
+
+승인 이후 GitHub Push를 진행한다.
