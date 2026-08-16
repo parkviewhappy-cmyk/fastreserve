@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { SiteType, type Reservation } from '@/types/reservation'
-import type { ReservationRepository } from '@/domain/reservation/repository/reservation.repository'
+import { SiteType } from '@/types/reservation'
 import { ReservationManager } from '@/domain/reservation/manager/reservation.manager'
-import { DiscoveryStatus, type DiscoveryItem, type DiscoveryCache } from '../types'
-import type { DiscoveryRepository } from '../repository/discovery.repository'
+import { DiscoveryStatus, type DiscoveryItem } from '../types'
 import { DiscoveryManager } from './discovery.manager'
+import { FakeDiscoveryRepository, FakeReservationRepository } from '@/test-utils'
 
 /**
  * Discovery Manager Integration Test.
@@ -15,53 +14,11 @@ import { DiscoveryManager } from './discovery.manager'
  * (SessionChecker, Plugin Factory 등과 동일한 패턴). 그 덕분에 LocalStorage/실제 브라우저
  * 환경 없이도, 메모리 기반 Fake Repository만으로 Manager 로직을 완전히 검증할 수 있다.
  * jsdom 등 추가 devDependency 없이 순수 Node 환경에서 실행 가능하다.
+ *
+ * PM 지시(Sprint 13, ⑦ 테스트 코드 정리): Fake Repository 구현체는 다른 Domain 테스트에서도
+ * 재사용할 수 있도록 src/test-utils로 옮겼다(docs/TESTING.md 참고). 기존 테스트 케이스는
+ * 하나도 삭제하지 않았고, import 경로만 바뀌었다.
  */
-
-/** 메모리 기반 Fake Discovery Repository. */
-class FakeDiscoveryRepository implements DiscoveryRepository {
-  private cache: DiscoveryCache | null = null
-  private favoriteIds: string[] = []
-
-  getCache(): DiscoveryCache | null {
-    return this.cache
-  }
-  saveCache(cache: DiscoveryCache): void {
-    this.cache = cache
-  }
-  getFavoriteIds(): string[] {
-    return this.favoriteIds
-  }
-  saveFavoriteIds(ids: string[]): void {
-    this.favoriteIds = ids
-  }
-}
-
-/** 메모리 기반 Fake Reservation Repository(ReservationManager에 그대로 주입 가능). */
-class FakeReservationRepository implements ReservationRepository {
-  private items: Reservation[] = []
-
-  getAll(): Reservation[] {
-    return this.items
-  }
-  getById(id: string): Reservation | undefined {
-    return this.items.find((item) => item.id === id)
-  }
-  save(reservation: Reservation): Reservation {
-    this.items.push(reservation)
-    return reservation
-  }
-  update(id: string, patch: Partial<Reservation>): Reservation | undefined {
-    const index = this.items.findIndex((item) => item.id === id)
-    if (index === -1) return undefined
-    this.items[index] = { ...this.items[index], ...patch }
-    return this.items[index]
-  }
-  delete(id: string): boolean {
-    const before = this.items.length
-    this.items = this.items.filter((item) => item.id !== id)
-    return this.items.length < before
-  }
-}
 
 function makeItem(overrides: Partial<DiscoveryItem> = {}): DiscoveryItem {
   return {

@@ -494,3 +494,57 @@ PM이 Sprint 12를 승인했다. Sprint 12에서 남긴 PM Review 요청 3건에
 3. **v1.0 범위(다른 예매 사이트/항공사) 지원 순서**: 이번 PM Review에서는 별도 답변이 없었다. 다음 Sprint 지시에서 구체적인 우선순위를 받는 대로 반영한다(현재는 인터파크 단일 지원 그대로 유지).
 
 승인 이후 GitHub Push를 진행한다.
+
+## Sprint 13 Test Checklist
+
+PM 지시(Sprint 13, ④)에 따라 Sprint 13부터 매 Sprint 공통으로 사용할 실사용 테스트 체크리스트를 추가한다. 이 개발 환경(샌드박스)은 브라우저/Android 기기가 없어 아래 항목을 실제로 체크(✅)하지 못했다 — **모든 항목은 PM이 로컬/실기기에서 직접 확인해야 한다.** 이번 Sprint 완료 시점 기준 각 항목의 "가능 여부"만 미리 표시한다.
+
+| 항목 | Sprint 13 시점 상태 | 비고 |
+|---|---|---|
+| Web 실행 | 코드 준비됨(미확인) | `npm run dev`로 확인 |
+| Build 성공 | 코드 준비됨(미확인) | `npm run build`로 확인. 이 환경은 npm 레지스트리 차단으로 실행 불가 |
+| APK Build | 준비 단계(미확인) | Capacitor 구조만 추가됨. `docs/APK_BUILD_GUIDE.md` 절차대로 PM이 로컬에서 진행 |
+| Android 설치 | 미확인 | APK Build 이후 진행 가능 |
+| Notification 확인 | 미확인, 알려진 제약 있음 | `docs/APK_BUILD_GUIDE.md`의 권한 표 참고(Web Notification API가 WebView에서 불안정할 수 있음) |
+| Vibration 확인 | 미확인 | `docs/APK_BUILD_GUIDE.md`의 권한 표 참고 |
+| Reservation 생성 | 웹에서는 기존 기능(Sprint 2-3)으로 정상 동작 확인됨(정적 검증) | Android에서 별도 확인 필요 |
+| Discovery 화면 확인 | 웹에서는 Sprint 11-12로 정상 동작 확인됨(정적 검증) | Android에서 별도 확인 필요 |
+| Ready 화면 확인 | 웹에서는 Sprint 8-10으로 정상 동작 확인됨(정적 검증) | Android에서 별도 확인 필요 |
+| History 확인 | **해당 사항 없음** | History Domain이 아직 구현되지 않았다(`src/types/history.ts`는 계속 빈 placeholder). 구현 전까지 이 항목은 통과/실패를 판정할 대상 자체가 없다 |
+
+이 표는 매 Sprint 갱신하며, `docs/Regression_Checklist.md`(⑥) 및 `docs/BUG_TRACKER.md`(⑤)와 함께 사용한다.
+
+## Architecture Review (Sprint 13 ⑧)
+
+PM 지시에 따라 "코드 수정이 아닌 TODO만 남기는" 방식으로, 현재 Architecture가 v1.0(국내 공연 예매 4개 사이트 + 국내 항공 7개사) 출시까지 유지 가능한지 검토했다. 이번 Sprint에서는 아래 항목 중 어떤 것도 실제로 구현하지 않았다.
+
+**결론(요약)**: Domain 구조(Reservation/Discovery/Plugin/Session/Scheduler/Simulation/Ready/Execution) 자체의 큰 골격은 유지 가능하다고 판단한다. Plugin/Adapter Factory 패턴, SessionChecker/DiscoveryDataProvider의 교체 가능 구조 덕분에 "사이트를 늘리는 것" 자체는 설계상 예정되어 있다. 다만 실제로 사이트/항공사를 늘리려면 아래 TODO들을 순서대로 처리해야 한다.
+
+**TODO 1 — SiteType Enum 확장 필요**: 현재 `src/types/reservation.ts`의 `SiteType`은 `Interpark`/`TicketLink`/`Yes24`/`JinAir`/`Custom` 5개뿐이다. v1.0 범위(인터파크/YES24/멜론티켓/티켓링크 + 대한항공/아시아나/제주항공/진에어/티웨이/에어부산/에어서울)를 전부 지원하려면 `MelonTicket`/`KoreanAir`/`AsianaAirlines`/`JejuAir`/`TwayAir`/`AirBusan`/`AirSeoul` 7개 값이 추가로 필요하다(`JinAir`는 이미 있음). `SiteType`은 Reservation/SiteAccount/Session/ExecutionContext/Discovery가 전부 공유하는 단일 Enum이므로, 값을 추가하는 것만으로는 다른 Domain에 구조적 영향이 없을 것으로 예상되지만 실제 추가 시 재검증이 필요하다.
+
+**TODO 2 — URL 검증 규칙이 인터파크 전용으로 하드코딩됨**: `src/domain/reservation/validator/reservation.validator.ts`의 `INTERPARK_URL_PATTERN`은 `tickets.interpark.com` 도메인만 허용한다. 다른 사이트/항공사 URL을 등록하려면 사이트별 정규식을 여러 개 관리하는 구조(예: `Record<SiteType, RegExp>`)로 바꿔야 한다.
+
+**TODO 3 — Plugin/Adapter가 인터파크 하나만 구현됨**: `PluginFactory`/`SiteAdapterFactory`는 현재 `SiteType.Interpark`에 대해서만 실제 Plugin/Adapter를 생성한다(다른 사이트는 `createPlugin()`이 `undefined`를 반환). 새 사이트를 추가할 때마다 사이트별 Plugin/Adapter 구현체를 새로 만들어야 하며, 이는 "새 Domain"이 아니라 기존 `domain/plugin`, `domain/adapter` 안에 구현체를 추가하는 형태이므로 Architecture 변경 없이 가능하다고 판단한다.
+
+**TODO 4 — "항공 예약"이 기존 Reservation 데이터 모델에 자연스럽게 맞지 않을 수 있음**: 현재 `Reservation`(공연 예매 기준: `eventName`/`eventDate`/`eventTime`/`preferredSeat`/`venue` 등 암묵적 개념)은 공연 티켓을 염두에 두고 설계되었다. 항공 예약은 "출발지/도착지/항공편명/탑승 수속 시작 시각" 등 다른 개념이 필요할 수 있다. `eventName`을 항공편명으로, `openTime`을 "예약(발권) 오픈 시각"으로 억지로 맞춰 쓸 수는 있지만, 필드 이름이 공연 중심이라 혼란을 줄 수 있다. **이 부분은 Domain을 새로 만들지, 기존 Reservation 필드의 의미를 확장(주석/문서로만 재정의)할지 PM 판단이 필요하다** — 코드는 변경하지 않고 이번 Sprint에서는 이 TODO만 남긴다.
+
+**TODO 5 — Discovery Provider의 실제 데이터 연동 방식 미확정**: Sprint 11 조사 결과 인터파크의 공식 API/RSS는 확인되지 않았다. 다른 사이트/항공사도 공식 데이터 연동 가능 여부를 사이트별로 조사해야 하며(Sprint 11 1단계와 동일한 절차), 이는 매 사이트 추가 시 반복되는 선행 조사 작업이다.
+
+이번 Sprint에서 위 TODO에 대한 코드 변경은 전혀 하지 않았다(README 기록만 진행). 다음 Sprint에서 PM이 우선순위를 지정하면 그 순서대로 진행한다.
+
+## Sprint 13 Build 오류 전수 점검 (①)
+
+`npm install`이 막혀 있어 `tsc -b`/`vite build`/`eslint`를 이 환경에서 직접 실행하지 못했다(Sprint 8부터 반복된 제약). 대신 Python 정적 스크립트로 아래 항목을 전수 점검했다.
+
+- **Import 경로 전수 해석**: `src/` 전체의 모든 `from '...'` 경로가 실제 파일로 해석되는지 확인 — 문제 없음
+- **미사용 import 스캔**: 각 파일의 import된 식별자가 파일 내에서 실제로 쓰이는지 확인 — 문제 없음
+- **중복 export interface/type 이름 스캔**: `src/` 전체에서 같은 이름의 `export interface`/`export type`이 여러 파일에 있는지 확인 — 중복 없음
+- **미사용(dead) export 스캔**: Domain/Util 파일이 export한 함수/상수/클래스가 코드베이스 어디에서도 참조되지 않는 경우를 찾음 — 아래 2개 그룹 발견(모두 삭제하지 않고 기록만 함, "기존 코드 삭제 최소화" 원칙)
+  - **의도적으로 미리 준비해둔 유틸(문제 아님)**: `isVersionEqual`/`isVersionGreaterThan`/`isVersionLessThan`(Plugin Version 비교, 향후 업데이트 확인 기능용), `isActiveReservation`/`isFailedReservation`(Reservation 상태 판별 유틸), `DISCOVERY_SUPPORTED_SITE`(Discovery가 지원하는 사이트 상수) — 전부 이전 Sprint에서 "향후 사용 예정"으로 의도적으로 만든 것들이다
+  - **실제 죽은 코드로 보이는 것(BUG-003으로 등록, `docs/BUG_TRACKER.md` 참고)**: `src/domain/reservation/service/reservation.service.ts`(`ReservationService` 클래스와 `reservationService` 인스턴스)와 그 의존 파일 `src/domain/reservation/repository/reservation.repository.mock.ts`(`MockReservationRepository`), `src/domain/reservation/mock/reservation.mock.ts`(`mockReservations`)는 Sprint 2에서 만들어졌지만 Sprint 3에서 `ReservationManager`(LocalStorage 기반)가 도입된 뒤로 앱의 어떤 화면도 더 이상 이 파일들을 사용하지 않는다. 삭제 여부는 PM 확인이 필요해 이번 Sprint에서는 그대로 두었다(아래 PM Review 요청 참고)
+- **`console.*` 잔여 코드 스캔**: `console.log`/`console.warn`/`console.error` 등 디버그용 흔적 — 없음
+- **ESLint `react-hooks/exhaustive-deps` 수동 검토**: `useEffect([])` 형태로 쓰인 곳들을 모두 직접 읽어 실제로 outer scope 값을 참조하는지 확인했다. 기존에 `eslint-disable-next-line`이 붙어 있는 2곳(`Discovery.tsx`)은 의도적으로 마운트 시 1회만 실행해야 하는 로직이라 정당한 예외였고, suppress 없이 빈 배열(`[]`)을 쓴 나머지 곳들(`ReadyScreen.tsx`의 Countdown 타이머/온라인-오프라인 리스너/알림 권한 요청)은 실제로 outer scope 값을 참조하지 않아 규칙 위반이 아니라고 판단했다
+- **`no-empty`(빈 catch 블록) 수동 검토**: `catch { }` 패턴 9곳을 모두 확인했다. 전부 실패를 의도적으로 무시하는 이유를 설명하는 주석이 안에 있다(예: "localStorage 읽기 실패는 무시한다"). ESLint의 `no-empty` 규칙은 주석이 있는 블록을 비어 있다고 보지 않으므로 규칙 위반이 아닐 것으로 예상하지만, 실제 eslint 실행 없이는 100% 확정할 수 없다
+- **vite build warning**: 실행 자체가 불가능해 확인하지 못했다. 청크 크기 등은 이 프로젝트 규모(의존성 3개 dependencies)에서 문제가 될 가능성은 낮다고 보지만 추정일 뿐이다
+
+**PM Review 요청(신규)**: `docs/BUG_TRACKER.md`의 BUG-003(Sprint 2 레거시 `ReservationService`/`MockReservationRepository`/`mockReservations`가 완전히 죽은 코드로 보임)을 삭제해도 되는지 확인 부탁드린다. "기존 코드 삭제 최소화" 원칙 때문에 이번 Sprint에서는 삭제하지 않고 기록만 남겼다.
