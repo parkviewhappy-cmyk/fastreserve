@@ -38,6 +38,11 @@ export interface ExecutionContext {
  * - Waiting: 로그인/Session이 아직 준비되지 않은 상태.
  * - Skipped: Plugin 미설치 또는 예약 URL 미등록으로 준비 확인을 건너뛴 상태.
  * Enum 멤버를 추가/삭제하지 않고 문서(의미)만 갱신했다("새로운 Architecture 추가 금지" 원칙).
+ *
+ * TODO(PM Review, Sprint 10 수정): Failed/Retry는 삭제하지 않고 유지한다. 향후 History
+ * 화면의 Failure Analysis(실패 원인 분석) 및 Retry Statistics(재시도 통계) 기능에서
+ * 사용할 예정이다. 이번 수정에서는 위 두 값을 반환하는 로직을 추가하지 않는다
+ * (prepareExecution()의 현재 동작은 변경하지 않는다).
  */
 export enum ExecutionResult {
   Success = 'SUCCESS',
