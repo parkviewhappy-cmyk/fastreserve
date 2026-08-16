@@ -56,3 +56,33 @@ WebView(Capacitor) 환경에서 정상 동작하기 위해 필요한 조치를 �
 - `capacitor.config.ts` 신규 파일 추가(webDir: 'dist')
 - 기존 React 소스 코드(`src/` 전체)는 이번 Sprint에서 전혀 수정하지 않았다(PM 지시 "기존 React 프로젝트는 변경하지 않는다" 준수)
 - `android/` 네이티브 폴더는 이 샌드박스에서 생성하지 못했다. PM이 `npm run cap:add:android`를 로컬에서 실행해야 생성된다
+
+## 5. Sprint 14 점검 결과 (② Android APK 준비 항목 점검 / ③ 실제 APK 생성 준비 상태 확인)
+
+PM 지시(Sprint 14)에 따라 APK 생성에 필요한 항목을 아래와 같이 전수 점검했다.
+
+| 항목 | 상태 | 비고 |
+|---|---|---|
+| `capacitor.config.ts` | ✅ 완료 | `appId: com.fastreserve.app`, `appName: FastReserve`, `webDir: dist` — 유효한 역방향 도메인 형식, Vite 기본 빌드 폴더와 일치 확인 |
+| `package.json` (Capacitor 의존성/스크립트) | ✅ 완료 | Sprint 13에서 추가, 이번 Sprint에서 재확인만 함(변경 없음) |
+| 앱 이름 | ✅ 완료 | "FastReserve" (`capacitor.config.ts` `appName`) |
+| App ID | ✅ 완료 | `com.fastreserve.app` |
+| App Icon | ✅ 신규 추가(Sprint 14) | `resources/icon.png`(1024x1024) 추가. 기존 `public/favicon.svg` 디자인을 그대로 재사용(새 디자인 제작 아님). 실제 Android `mipmap` 리소스 생성은 `@capacitor/assets` 필요(TODO, 아래 참고) |
+| Splash | ✅ 신규 추가(Sprint 14) | `resources/splash.png`(2732x2732, 앱 배경색 `#0a0a0a` + 아이콘 중앙 배치) 추가. 리소스 생성은 App Icon과 동일하게 TODO |
+| `AndroidManifest.xml` | ⛔ 확인 불가(TODO) | `android/` 네이티브 폴더 자체가 이 샌드박스에 없어(Android SDK 접근 불가) 파일이 존재하지 않는다. `npm run cap:add:android`를 PM이 로컬에서 실행해야 생성되며, 생성 후 `VIBRATE`/`POST_NOTIFICATIONS` 권한 포함 여부를 직접 확인해야 한다(Sprint 13에서 이미 TODO로 기록한 항목과 동일) |
+| Permissions | ✅ 검토 완료(변경 없음) | 위 "3. Android 권한 점검" 표 그대로 유효. 이번 Sprint에서 재검토했으나 새로 발견된 항목 없음 |
+
+### Android Studio에서 바로 Build 가능한 상태인가?
+
+**아니오, 아직 아니다.** `android/` 네이티브 프로젝트가 생성되어 있지 않기 때문이다(이 샌드박스는
+npm 레지스트리 접근 차단 + Android SDK 미설치로 `cap add android`를 실행할 수 없다). 설정 파일
+(`capacitor.config.ts`, `package.json`, App Icon/Splash 소스)은 모두 준비되었으므로, PM이 로컬에서
+"2. Web Build → APK 절차"의 1~5단계를 순서대로 실행하면 곧바로 Android Studio에서 Build가 가능한
+상태다.
+
+### Android SDK가 필요해 이번 Sprint에서 처리하지 못한 항목(TODO)
+
+1. `npm run cap:add:android` 실행 → `android/` 네이티브 프로젝트 생성
+2. `AndroidManifest.xml`의 `VIBRATE`/`POST_NOTIFICATIONS` 권한 실제 포함 여부 확인
+3. `npx capacitor-assets generate --android` 실행 → `resources/icon.png`, `resources/splash.png`로부터 실제 `mipmap-*`/`drawable-*` 리소스 생성
+4. Android Studio에서 실제 APK Build 및 실기기(또는 에뮬레이터) 설치 테스트

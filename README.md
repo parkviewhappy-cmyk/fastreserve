@@ -550,3 +550,50 @@ PM 지시에 따라 "코드 수정이 아닌 TODO만 남기는" 방식으로, �
 - **vite build warning**: 실행 자체가 불가능해 확인하지 못했다. 청크 크기 등은 이 프로젝트 규모(의존성 3개 dependencies)에서 문제가 될 가능성은 낮다고 보지만 추정일 뿐이다
 
 **PM Review 요청(신규)**: `docs/BUG_TRACKER.md`의 BUG-003(Sprint 2 레거시 `ReservationService`/`MockReservationRepository`/`mockReservations`가 완전히 죽은 코드로 보임)을 삭제해도 되는지 확인 부탁드린다. "기존 코드 삭제 최소화" 원칙 때문에 이번 Sprint에서는 삭제하지 않고 기록만 남겼다.
+
+## Sprint 14 (완료) — V1.0 Release Candidate(RC1) 준비
+
+PM 지시: "새로운 기능 개발이 아니라 실제 사용 가능한 V1.0 Release Candidate(RC1)를 만드는 것"이
+Sprint 14 목표다. 기존 Architecture/Domain은 전혀 수정하지 않았다(아래 diff 확인 결과 `src/domain`
+변경 0건).
+
+### ① Build 검증
+
+- `npm install`: **실패**(`403 Forbidden - registry.npmjs.org`). Sprint 8부터 반복 확인된 샌드박스
+  제약과 동일하다. `node_modules`가 없어 `npm run lint`/`npm run build`(`tsc -b && vite build`)/
+  `npm test`(`vitest`)도 실제 실행이 불가능했다(원인: 위 install 실패로 tsc/eslint/vite/vitest
+  바이너리 자체가 없음).
+- 대신 Python 정적 스크립트로 재검증: Import 경로 전수 해석(113개 파일, `@/` alias 포함) — 문제
+  없음. 괄호/중괄호 균형 — 1건 오탐 발견(`reservation.validator.ts`, 주석 안의 "예)" 표기 때문에
+  단순 카운터가 오작동한 것일 뿐 실제 코드 구조는 문제 없음, 라인별 추적으로 확인). 금지 패턴
+  (자동 클릭/자동 로그인/자동 제출 등) 검사 — 발견 없음. 중복 export 타입명 — 없음. BUG-003
+  레거시 파일 참조 여부 재확인 — 여전히 미참조(Sprint 13과 동일 상태 유지).
+
+### ② Android APK 준비 항목 점검 / ③ 실제 APK 생성 준비 상태 확인
+
+`docs/APK_BUILD_GUIDE.md`의 "5. Sprint 14 점검 결과" 섹션에 전체 표와 결론을 기록했다. 요약:
+`capacitor.config.ts`/`package.json`/앱 이름/App ID는 이미 완료 상태였고, 이번 Sprint에서
+`resources/icon.png`(1024x1024)와 `resources/splash.png`(2732x2732)를 새로 추가했다(기존
+`public/favicon.svg` 디자인을 그대로 재사용, 신규 디자인 제작 아님). `AndroidManifest.xml`은
+`android/` 네이티브 폴더 자체가 이 샌드박스에 없어(Android SDK 미설치) 확인 불가 — TODO로 남김.
+**결론: Android Studio에서 바로 Build 가능한 상태는 아직 아니다.** `npm install` → `npm run
+cap:add:android`를 PM이 로컬에서 실행해야 다음 단계로 진행할 수 있다.
+
+### ④ 통합 테스트
+
+`docs/Regression_Checklist.md`의 "Sprint 14 통합 테스트" 섹션에 14개 항목 전체를 PASS/FAIL/NOT
+TESTED로 기록했다. 결과: 12개 PASS(정적 코드 경로 검증), 2개 NOT TESTED(Countdown 백그라운드
+동작, Notification 실제 발생 — 둘 다 실기기가 필요하며 기존에 이미 알려진 제약이다).
+
+### ⑤ 버그 수정
+
+이번 Sprint에서 새로 발견된 버그는 없다. `BUG-004`는 등록하지 않았다(`docs/BUG_TRACKER.md`
+"Sprint 14 점검 결과" 참고).
+
+### ⑥ Architecture 유지
+
+`git diff develop --stat` 기준 이번 Sprint에서 변경된 파일은 `docs/APK_BUILD_GUIDE.md`,
+`docs/BUG_TRACKER.md`, `docs/Regression_Checklist.md`, `resources/README.md`,
+`resources/icon.png`, `resources/splash.png`, `README.md`, `package.json`(버전만)뿐이다.
+**`src/` 전체(모든 Domain/화면/컴포넌트)는 단 한 줄도 수정하지 않았다.** 새 Domain 추가 없음,
+Manager/Repository 구조 변경 없음, 기존 Adapter 구조 유지.
