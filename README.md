@@ -677,3 +677,38 @@ Sprint 1~15 회귀 테스트를 진행했다(상세는 `docs/Regression_Checklis
 5개 Repository 파일의 쓰기 메서드에 `try/catch`만 추가했다. Domain 구조/Manager/
 Repository/Adapter 인터페이스는 전혀 변경하지 않았다(기존 클래스 내부 구현만 수정,
 새 클래스 없음). UI 변경 없음.
+
+## Sprint 17 (완료) — PC Runtime Verification
+
+PM 지시: "Android APK 생성 전에 Web 버전이 완전히 동작하는 상태를 만드는 것"이 목표.
+`npm install`/`npm run dev`/`npm run build`를 실제로 시도했으나 모두 실패했다(원인:
+Sprint 8부터 동일한 npm 레지스트리 차단. 이번 Sprint에 apt/pip 등 대체 설치 경로까지
+전수 시도했으나 전부 프록시 403으로 막혀 있음을 재확인했다).
+
+### 이번 Sprint에서 새로 한 것: Node.js 실제 실행 기반 검증
+
+기존 Sprint들은 Python 정적 분석(문자열 기반 heuristic)에 의존했으나, 이번 Sprint에서
+Node.js 22의 `--experimental-transform-types`로 **TypeScript 코드를 실제로 파싱·실행**하는
+방법을 찾아 적용했다(`docs/TESTING.md` "Sprint 17" 섹션, 리졸버는
+`scripts/alias-loader.mjs`). React/JSX가 없는 `src/domain`, `src/utils`, `src/types`,
+`src/test-utils` 레이어(비즈니스 로직 대부분)에서:
+
+- 79개 파일 중 78개 실제 import 성공(문법 오류 없음, import 전부 해석, 모듈 최상위
+  코드 정상 실행). 나머지 1개는 `@capacitor/core` 미설치가 유일한 원인
+- Reservation/Discovery/Ready/Session/Scheduler/Simulation 핵심 로직을 실제로 호출해
+  정상 동작 확인(생성/검증/즐겨찾기 토글/점수 계산/Session 상태 전이/Execution Queue/
+  Preparation Simulation 등) — 예외 없음
+- 괄호 균형 검사를 문자열/주석을 실제로 걸러내는 토크나이저로 재작성해, Sprint 13부터
+  보고서에 남아있던 거짓 양성(주석 안 "예)" 텍스트)을 완전히 해소했다
+
+### 발견된 Runtime Bug
+
+없음. Sprint 16에서 이미 발견된 문제(BUG-004)를 수정한 뒤라, 이번 Sprint의 더 깊은
+실행 기반 검증에서도 새로운 문제는 나오지 않았다. BUG-005(Session.expiresAt 미사용)도
+이번 Sprint의 실제 실행 결과로 재확인되었다(기존 분석과 일치).
+
+### 변경 범위
+
+`docs/TESTING.md`, `docs/Regression_Checklist.md`, `scripts/alias-loader.mjs`(신규,
+검증 도구일 뿐 프로덕션 코드 아님), `package.json`(버전만). **`src/` 변경 없음** —
+이번 Sprint에서 새로 발견된 실행 오류가 없었기 때문이다.

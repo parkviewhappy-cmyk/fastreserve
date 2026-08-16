@@ -132,3 +132,49 @@ Scheduler, Notification)는 코드 경로상 영향을 받지 않는다. Sprint 
 총 9+16개 케이스)의 대상 코드도 이번 Sprint에서 건드리지 않았다.
 
 **결론**: Sprint 1~15 기능 회귀 없음.
+
+## Sprint 17: PC Runtime Verification
+
+### 1~6단계 실행 검증 (PM 지정 순서)
+
+| # | 절차 | 결과 |
+|---|---|---|
+| 1 | `npm install` | **실패** — `npm error 403 Forbidden - registry.npmjs.org`(Sprint 8부터 동일). Sprint 17에서 apt(`esbuild`)/pip(`PyPI`) 등 대체 경로도 전부 시도했으나 전부 프록시 403으로 차단됨을 재확인(`docs/APK_BUILD_GUIDE.md` "6-1" 및 이번 Sprint 완료 보고 참고) |
+| 2 | `npm run dev` | **실패** — `sh: 1: vite: not found`(node_modules 없음, 1번 실패의 직접 결과) |
+| 3 | 브라우저 실행 | **불가** — dev 서버 자체가 뜨지 않아 접속할 URL이 없음 |
+| 4 | 모든 화면 진입 확인 | **불가**(브라우저 실행 불가로 인한 연쇄) — 대신 아래 "실제 Node 실행 기반 검증"으로 코드 레벨 대체 검증 수행 |
+| 5 | `npm run build` | **실패** — `sh: 1: tsc: not found`(1번과 동일 원인) |
+| 6 | 빌드 성공 여부 | **실패**(5번 결과) |
+
+### 실제 Node 실행 기반 검증 (대체 수단, `docs/TESTING.md` "Sprint 17" 섹션 참고)
+
+`npm install`이 근본적으로 막혀 있어(레지스트리뿐 아니라 apt/pip 대체 경로까지 이번
+Sprint에서 전수 확인) 위 6단계를 그대로 재현할 수는 없었지만, Node.js 22의
+`--experimental-transform-types`로 **실제로 TypeScript 코드를 파싱·실행**해 아래를
+확인했다(자세한 방법은 `docs/TESTING.md`, 리졸버는 `scripts/alias-loader.mjs`):
+
+- `src/domain/**`, `src/utils/*`, `src/types/*`, `src/test-utils/*` 총 79개 파일 중
+  78개 실제 import 성공(문법 오류 없음/내부 import 전부 해석/모듈 최상위 코드 정상 실행,
+  Manager 싱글턴 생성 포함). 나머지 1개(`notification.ts`)는 `@capacitor/core` 미설치가
+  유일한 원인(코드 문제 아님)
+- 8개 핵심 Manager/Engine의 실제 메서드 호출(`reservationManager.list/create`,
+  `discoveryManager.refresh/toggleFavorite`, `readyEngine.getDashboardSummary`,
+  `scheduler.getExecutionQueue/simulateExecution`, `healthCheckEngine.getReport`,
+  `pluginManager.list/isHealthy`, `sessionManager.checkSession/isExpired`,
+  `siteAccountManager.list`, `validateReservation` 경계값)까지 실제로 실행해 정상
+  반환값을 확인 — 예외 없음
+- `괄호/중괄호/대괄호 균형` 검사를 문자열·주석을 실제로 걸러내는 토크나이저 기반으로
+  다시 작성해 재실행 — 114개 파일 전부 균형 확인(Sprint 13~16 보고서에 남아있던
+  `reservation.validator.ts`의 거짓 양성 — 주석 안의 "예)" 텍스트 때문 — 이번에 완전히
+  해소됨)
+- 미사용 import: 0건, `console.*` 잔여: 0건 재확인
+
+### 브라우저 테스트 (Chrome/Edge/새로고침/LocalStorage/인터넷끊김/Notification권한)
+
+| 항목 | 결과 |
+|---|---|
+| Chrome / Edge 실제 실행 | **NOT TESTED** — 이 샌드박스는 GUI 브라우저가 없고 dev 서버도 못 띄움. PM 로컬 환경에서만 확인 가능 |
+| 브라우저 새로고침 | 코드 관점 PASS(Sprint 16과 동일 결론) — 실제 브라우저 확인은 NOT TESTED |
+| LocalStorage 유지 | 코드 관점 PASS(Sprint 16 BUG-004 수정으로 쓰기 실패 시에도 안전) — 실제 브라우저 확인은 NOT TESTED |
+| 인터넷 끊김 | 코드 관점 PASS(`navigator.onLine` 처리 확인, Sprint 16과 동일) — 실제 브라우저 확인은 NOT TESTED |
+| Notification 권한 | 코드 관점 PASS(권한 미허용 시 조용히 무시하는 로직 확인) — 실제 브라우저 권한 팝업 확인은 NOT TESTED |
