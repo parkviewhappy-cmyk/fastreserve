@@ -90,3 +90,45 @@ NOT TESTED(Countdown 백그라운드 동작, Notification 실제 발생 — 둘 
 **결론**: 13개 항목 모두 NOT TESTED. 이 중 9번(Notification)이 이번 Sprint의 핵심 변경사항이므로
 실기기 테스트 시 최우선으로 확인해야 하고, 11/12번(화면 회전/백그라운드 복귀)은 기존에
 알려진 리스크가 그대로 남아있어 함께 확인이 필요하다.
+
+## Sprint 16 종합 검증 (V1.0 Comprehensive Validation)
+
+PC(Web) 환경 기준, 실제 브라우저/서버 실행 없이 코드 경로를 처음부터 끝까지 추적하는
+방식으로 검증했다(이 샌드박스의 `npm install` 차단 제약은 Sprint 8부터 동일).
+
+### 기능 검증 (①~⑦)
+
+| # | 기능 | 결과 | 비고 |
+|---|---|---|---|
+| ① | Reservation (생성/수정/삭제/저장/조회/Validation) | PASS | CRUD 전체 경로 재확인. Validation 경계값(ticketCount 0/NaN/음수, URL 형식, 날짜/시간 패턴) 재확인 — 문제 없음 |
+| ② | Discovery Center (목록/검색/정렬/Favorite/데이터없음/Mock표시) | PASS | Sprint 12에서 검증된 로직 그대로. 빈 목록 UI 분기 확인 |
+| ③ | Ready Screen (Countdown/점수/URL검사/Plugin/Login/인터넷/Notification) | PASS | Notification 발송 경로만 Sprint 15에서 교체, 나머지 로직 불변 |
+| ④ | History (저장/날짜/상태표시) | **N/A** | History Domain이 아직 구현되지 않았다(`src/types/history.ts`는 여전히 빈 placeholder). Sprint 13부터 동일하게 보고된 사항이며 이번 Sprint에서도 구현하지 않았다(신규 기능 추가 금지 원칙) |
+| ⑤ | Session (로그인 유지/만료 처리) | PASS(만료 처리는 BUG-005 참고) | Mock 상태 흐름(UNKNOWN→READY→EXPIRED→LOGIN_REQUIRED→READY)으로 만료 시나리오 재현 가능. `expiresAt` 필드는 사실상 미사용(BUG-005, Low, 동작에 영향 없음) |
+| ⑥ | Simulation (Preparation Simulation) | PASS | 로직 변경 없음 |
+| ⑦ | Scheduler (Countdown/Timer) | PASS(구조 확인) | `Scheduler` 클래스 자체는 설계상 Timer가 없다(Sprint 6부터 "자동 실행 로직을 두지 않는다"). 실제 Countdown Timer는 Ready Screen(`ReadyScreen.tsx`)이 담당하며 Scheduler는 Queue 조회만 담당 — Domain 간 책임 분리가 의도대로 유지되고 있음을 재확인 |
+
+### 예외 상황 테스트 (8개)
+
+| 시나리오 | 결과 | 비고 |
+|---|---|---|
+| 인터넷 없음 | PASS | Discovery/ReadyScreen 모두 `navigator.onLine` 감지 + 오프라인 배너/버튼 비활성화 확인 |
+| URL 오류 | PASS | `INTERPARK_URL_PATTERN` + `isValidUrl()` 이중 검증 확인 |
+| Plugin 미설치 | PASS | `PluginManager.isAvailable/isHealthy/getCapabilities` 전부 미설치 시 안전한 기본값(`false`/`[]`) 반환 확인 |
+| 로그인 안됨 | PASS | `loginReady = account?.sessionStatus === SessionStatus.Ready` — 계정 없음/미로그인 모두 안전 처리 |
+| 데이터 없음 | PASS | Home/Discovery 빈 목록 UI 문구 확인 |
+| **LocalStorage 초기화(쓰기 실패)** | **FAIL → 수정 완료(BUG-004)** | 5개 Repository의 `setItem()` 전부 예외 처리가 없어 쓰기 실패 시 화면이 깨질 수 있었다. 발견 즉시 수정(아래 참고) |
+| Notification 권한 거부 | PASS | 네이티브/웹 모두 권한이 `granted`가 아니면 발송하지 않고 조용히 종료(`src/utils/notification.ts`) |
+| Browser Refresh | PASS(코드 관점) | 모든 화면이 마운트 시 Manager에서 다시 조회하는 구조라 새로고침 후에도 LocalStorage 데이터를 그대로 복원한다. 다만 `/ready/:id`처럼 루트가 아닌 경로에서의 새로고침은 정적 파일 서버의 SPA Fallback 설정에 따라 달라지는 배포 설정 문제이며(코드 버그 아님), Android APK 환경(Capacitor WebView)에서는 해당하지 않는다 |
+
+### 회귀 테스트 (Sprint 1~15)
+
+이번 Sprint에서 실제로 수정한 코드는 5개 Repository의 `writeAll`/`saveCache`/`saveFavoriteIds`
+메서드에 `try/catch`를 추가한 것뿐이다(성공 경로의 동작/반환값은 전혀 바뀌지 않았고, 실패
+경로에서 예외를 던지는 대신 조용히 무시하도록만 바뀌었다). 따라서 Sprint 1~15에서 확인된
+모든 정상 동작 경로(Reservation CRUD, Discovery, Ready Screen, Plugin, Session, Simulation,
+Scheduler, Notification)는 코드 경로상 영향을 받지 않는다. Sprint 12/13에 만든 자동화된
+단위/통합 테스트(`discovery.model.test.ts`/`discoveryRule.test.ts`/`discovery.manager.test.ts`,
+총 9+16개 케이스)의 대상 코드도 이번 Sprint에서 건드리지 않았다.
+
+**결론**: Sprint 1~15 기능 회귀 없음.

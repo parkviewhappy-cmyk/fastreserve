@@ -59,6 +59,11 @@ export class LocalStorageSiteAccountRepository implements SiteAccountRepository 
 
   private writeAll(accounts: SiteAccount[]): void {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts))
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts))
+    } catch {
+      // BUG-004(docs/BUG_TRACKER.md, Sprint 16 발견/수정): LocalStorage 쓰기 실패를
+      // 흡수한다(읽기 쪽과 동일한 보호 패턴). 상세 사유는 reservation.repository.localStorage.ts 참고.
+    }
   }
 }

@@ -57,6 +57,13 @@ export class LocalStorageReservationRepository implements ReservationRepository 
 
   private writeAll(reservations: Reservation[]): void {
     if (typeof window === 'undefined') return
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reservations))
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reservations))
+    } catch {
+      // BUG-004(docs/BUG_TRACKER.md, Sprint 16 발견/수정): LocalStorage 쓰기 실패(용량 초과,
+      // 브라우저의 개인정보 보호 모드에서 저장 차단 등)는 이 Repository의 다른 메서드가
+      // 예외로 죽지 않도록 여기서 흡수한다. 읽기 쪽(readAll)은 이미 동일한 패턴으로
+      // 보호되어 있었으나 쓰기 쪽에는 빠져 있었다.
+    }
   }
 }
