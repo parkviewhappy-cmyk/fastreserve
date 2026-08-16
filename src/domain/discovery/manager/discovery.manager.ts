@@ -7,11 +7,18 @@ import { LocalStorageDiscoveryRepository } from '../repository/discovery.reposit
 import type { DiscoveryDataProvider } from '../provider/discovery.provider'
 import { mockDiscoveryDataProvider } from '../provider/discovery.provider'
 import { DEFAULT_DISCOVERY_RULE, type DiscoveryRule } from '../rule/discoveryRule'
-import { filterDiscoveryByKeyword, findLinkedReservation, toReservationDraft } from '../model/discovery.model'
+import {
+  filterDiscoveryByKeyword,
+  findLinkedReservation,
+  sortDiscoveryItems,
+  toReservationDraft,
+} from '../model/discovery.model'
 
 export interface DiscoveryPrepareResult {
   success: boolean
   reservationId?: string
+  /** true면 새로 만들지 않고 기존에 연결되어 있던 Reservation을 재사용했다는 뜻이다. */
+  alreadyLinked?: boolean
   errors: string[]
 }
 
@@ -46,9 +53,12 @@ export class DiscoveryManager {
     return now.getTime() - fetchedAt > ttlMs
   }
 
-  /** 캐시에 있는 데이터를 그대로 반환한다(재조회하지 않음). 오프라인 상태에서 사용한다. */
+  /**
+   * 캐시에 있는 데이터를 정렬해서 반환한다(재조회하지 않음). 오프라인 상태에서 사용한다.
+   * PM 지시(Sprint 12, ① UI/UX 개선): 예매중/오픈예정을 먼저, 종료된 공연은 뒤로 정렬한다.
+   */
   getCached(): DiscoveryItem[] {
-    return this.repository.getCache()?.items ?? []
+    return sortDiscoveryItems(this.repository.getCache()?.items ?? [])
   }
 
   /** 마지막으로 캐시가 채워진 시각(ISO)을 반환한다. 한 번도 조회한 적이 없으면 null. */
@@ -60,16 +70,16 @@ export class DiscoveryManager {
   refresh(now: Date = getNow()): DiscoveryItem[] {
     const items = this.provider(now)
     this.repository.saveCache({ items, fetchedAt: now.toISOString() })
-    return items
+    return sortDiscoveryItems(items)
   }
 
-  /** 캐시가 없거나 TTL(기본 30분)이 지났을 때만 재조회한다. 그렇지 않으면 캐시를 그대로 반환한다. */
+  /** 캐시가 없거나 TTL(기본 30분)이 지났을 때만 재조회한다. 그렇지 않으면 캐시를 정렬해 반환한다. */
   refreshIfNeeded(now: Date = getNow()): DiscoveryItem[] {
     const cache = this.repository.getCache()
     if (this.isCacheExpired(cache, now)) {
       return this.refresh(now)
     }
-    return cache?.items ?? []
+    return sortDiscoveryItems(cache?.items ?? [])
   }
 
   /** 제목/아티스트 키워드로 검색한다(현재 캐시 목록 내에서 필터링). */
@@ -92,6 +102,16 @@ export class DiscoveryManager {
     const next = ids.filter((favoriteId) => favoriteId !== id)
     this.repository.saveFavoriteIds(next)
     return false
+  }
+
+  /**
+   * 이 Discovery 항목이 이미 Reservation으로 연결되어 있는지 확인한다(Sprint 12, ④ 개선).
+   * 화면에서 [예약 준비] 버튼을 누르기 전에 "이미 등록됨" 표시를 하기 위해 사용한다.
+   */
+  isLinked(itemId: string): boolean {
+    const item = this.getCached().find((candidate) => candidate.id === itemId)
+    if (!item) return false
+    return Boolean(findLinkedReservation(item, this.reservations.list()))
   }
 
   /** 즐겨찾기한 항목만 반환한다(현재 캐시 목록 기준). */
@@ -117,7 +137,12 @@ export class DiscoveryManager {
 
     const existing = findLinkedReservation(item, this.reservations.list())
     if (existing) {
-      return { success: true, reservationId: existing.id, errors: [] }
+      return {
+        success: true,
+        reservationId: existing.id,
+        alreadyLinked: true,
+        errors: [],
+      }
     }
 
     const result: ReservationMutationResult = this.reservations.create(
@@ -126,7 +151,12 @@ export class DiscoveryManager {
     if (!result.success || !result.reservation) {
       return { success: false, errors: result.errors }
     }
-    return { success: true, reservationId: result.reservation.id, errors: [] }
+    return {
+      success: true,
+      reservationId: result.reservation.id,
+      alreadyLinked: false,
+      errors: [],
+    }
   }
 }
 
