@@ -520,17 +520,19 @@ PM 지시에 따라 "코드 수정이 아닌 TODO만 남기는" 방식으로, �
 
 **결론(요약)**: Domain 구조(Reservation/Discovery/Plugin/Session/Scheduler/Simulation/Ready/Execution) 자체의 큰 골격은 유지 가능하다고 판단한다. Plugin/Adapter Factory 패턴, SessionChecker/DiscoveryDataProvider의 교체 가능 구조 덕분에 "사이트를 늘리는 것" 자체는 설계상 예정되어 있다. 다만 실제로 사이트/항공사를 늘리려면 아래 TODO들을 순서대로 처리해야 한다.
 
-**TODO 1 — SiteType Enum 확장 필요**: 현재 `src/types/reservation.ts`의 `SiteType`은 `Interpark`/`TicketLink`/`Yes24`/`JinAir`/`Custom` 5개뿐이다. v1.0 범위(인터파크/YES24/멜론티켓/티켓링크 + 대한항공/아시아나/제주항공/진에어/티웨이/에어부산/에어서울)를 전부 지원하려면 `MelonTicket`/`KoreanAir`/`AsianaAirlines`/`JejuAir`/`TwayAir`/`AirBusan`/`AirSeoul` 7개 값이 추가로 필요하다(`JinAir`는 이미 있음). `SiteType`은 Reservation/SiteAccount/Session/ExecutionContext/Discovery가 전부 공유하는 단일 Enum이므로, 값을 추가하는 것만으로는 다른 Domain에 구조적 영향이 없을 것으로 예상되지만 실제 추가 시 재검증이 필요하다.
+**① (PM 확정 최우선순위) TODO 1 — SiteType Enum 확장 필요**: 현재 `src/types/reservation.ts`의 `SiteType`은 `Interpark`/`TicketLink`/`Yes24`/`JinAir`/`Custom` 5개뿐이다. v1.0 범위(인터파크/YES24/멜론티켓/티켓링크 + 대한항공/아시아나/제주항공/진에어/티웨이/에어부산/에어서울)를 전부 지원하려면 `MelonTicket`/`KoreanAir`/`AsianaAirlines`/`JejuAir`/`TwayAir`/`AirBusan`/`AirSeoul` 7개 값이 추가로 필요하다(`JinAir`는 이미 있음). `SiteType`은 Reservation/SiteAccount/Session/ExecutionContext/Discovery가 전부 공유하는 단일 Enum이므로, 값을 추가하는 것만으로는 다른 Domain에 구조적 영향이 없을 것으로 예상되지만 실제 추가 시 재검증이 필요하다.
 
-**TODO 2 — URL 검증 규칙이 인터파크 전용으로 하드코딩됨**: `src/domain/reservation/validator/reservation.validator.ts`의 `INTERPARK_URL_PATTERN`은 `tickets.interpark.com` 도메인만 허용한다. 다른 사이트/항공사 URL을 등록하려면 사이트별 정규식을 여러 개 관리하는 구조(예: `Record<SiteType, RegExp>`)로 바꿔야 한다.
+**② (PM 확정 순위) TODO 2 — URL 검증 규칙이 인터파크 전용으로 하드코딩됨**: `src/domain/reservation/validator/reservation.validator.ts`의 `INTERPARK_URL_PATTERN`은 `tickets.interpark.com` 도메인만 허용한다. 다른 사이트/항공사 URL을 등록하려면 사이트별 정규식을 여러 개 관리하는 구조(예: `Record<SiteType, RegExp>`)로 바꿔야 한다.
 
-**TODO 3 — Plugin/Adapter가 인터파크 하나만 구현됨**: `PluginFactory`/`SiteAdapterFactory`는 현재 `SiteType.Interpark`에 대해서만 실제 Plugin/Adapter를 생성한다(다른 사이트는 `createPlugin()`이 `undefined`를 반환). 새 사이트를 추가할 때마다 사이트별 Plugin/Adapter 구현체를 새로 만들어야 하며, 이는 "새 Domain"이 아니라 기존 `domain/plugin`, `domain/adapter` 안에 구현체를 추가하는 형태이므로 Architecture 변경 없이 가능하다고 판단한다.
+**③ (PM 확정 순위) TODO 3 — Plugin/Adapter가 인터파크 하나만 구현됨**: `PluginFactory`/`SiteAdapterFactory`는 현재 `SiteType.Interpark`에 대해서만 실제 Plugin/Adapter를 생성한다(다른 사이트는 `createPlugin()`이 `undefined`를 반환). 새 사이트를 추가할 때마다 사이트별 Plugin/Adapter 구현체를 새로 만들어야 하며, 이는 "새 Domain"이 아니라 기존 `domain/plugin`, `domain/adapter` 안에 구현체를 추가하는 형태이므로 Architecture 변경 없이 가능하다고 판단한다.
 
-**TODO 4 — "항공 예약"이 기존 Reservation 데이터 모델에 자연스럽게 맞지 않을 수 있음**: 현재 `Reservation`(공연 예매 기준: `eventName`/`eventDate`/`eventTime`/`preferredSeat`/`venue` 등 암묵적 개념)은 공연 티켓을 염두에 두고 설계되었다. 항공 예약은 "출발지/도착지/항공편명/탑승 수속 시작 시각" 등 다른 개념이 필요할 수 있다. `eventName`을 항공편명으로, `openTime`을 "예약(발권) 오픈 시각"으로 억지로 맞춰 쓸 수는 있지만, 필드 이름이 공연 중심이라 혼란을 줄 수 있다. **이 부분은 Domain을 새로 만들지, 기존 Reservation 필드의 의미를 확장(주석/문서로만 재정의)할지 PM 판단이 필요하다** — 코드는 변경하지 않고 이번 Sprint에서는 이 TODO만 남긴다.
+**④ (PM 확정 순위) TODO 4 — "항공 예약"이 기존 Reservation 데이터 모델에 자연스럽게 맞지 않을 수 있음**: 현재 `Reservation`(공연 예매 기준: `eventName`/`eventDate`/`eventTime`/`preferredSeat`/`venue` 등 암묵적 개념)은 공연 티켓을 염두에 두고 설계되었다. 항공 예약은 "출발지/도착지/항공편명/탑승 수속 시작 시각" 등 다른 개념이 필요할 수 있다. `eventName`을 항공편명으로, `openTime`을 "예약(발권) 오픈 시각"으로 억지로 맞춰 쓸 수는 있지만, 필드 이름이 공연 중심이라 혼란을 줄 수 있다. **이 부분은 Domain을 새로 만들지, 기존 Reservation 필드의 의미를 확장(주석/문서로만 재정의)할지 PM 판단이 필요하다** — 코드는 변경하지 않고 이번 Sprint에서는 이 TODO만 남긴다.
 
-**TODO 5 — Discovery Provider의 실제 데이터 연동 방식 미확정**: Sprint 11 조사 결과 인터파크의 공식 API/RSS는 확인되지 않았다. 다른 사이트/항공사도 공식 데이터 연동 가능 여부를 사이트별로 조사해야 하며(Sprint 11 1단계와 동일한 절차), 이는 매 사이트 추가 시 반복되는 선행 조사 작업이다.
+**⑤ (PM 확정 순위) TODO 5 — Discovery Provider의 실제 데이터 연동 방식 미확정**: Sprint 11 조사 결과 인터파크의 공식 API/RSS는 확인되지 않았다. 다른 사이트/항공사도 공식 데이터 연동 가능 여부를 사이트별로 조사해야 하며(Sprint 11 1단계와 동일한 절차), 이는 매 사이트 추가 시 반복되는 선행 조사 작업이다.
 
-이번 Sprint에서 위 TODO에 대한 코드 변경은 전혀 하지 않았다(README 기록만 진행). 다음 Sprint에서 PM이 우선순위를 지정하면 그 순서대로 진행한다.
+이번 Sprint에서 위 TODO에 대한 코드 변경은 전혀 하지 않았다(README 기록만 진행).
+
+**PM Review 확정(Sprint 13 PM Review)**: 위 TODO 1~5의 우선순위가 그대로(① SiteType 확장 → ② URL 검증 다중화 → ③ Plugin/Adapter 사이트별 구현 → ④ 국내 항공 예약 데이터 모델 → ⑤ 사이트별 공식 데이터 조사) 확정되었다. "국내 공연 → 국내 항공" 순서로 확장한다는 방향도 함께 확정되었다(v1.0 범위 중 국내 공연 예매 사이트 3곳을 먼저 SiteType에 추가한 뒤, 국내 항공 7개사를 그다음에 추가). 실제 구현은 다음 Sprint 지시를 받는 대로 진행한다 — 이번 Sprint 13 PM Review 반영은 문서/주석 갱신까지만이다.
 
 ## Sprint 13 Build 오류 전수 점검 (①)
 
