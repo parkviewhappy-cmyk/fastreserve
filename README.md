@@ -359,3 +359,54 @@ PM은 Sprint 10을 전체 승인했고, "기능 추가보다 프로젝트 방향
 **삭제 파일**: 없음(0개)
 
 **Architecture 영향**: 없음 — 기존 7개 Domain(Execution/Plugin/Session/Scheduler/Simulation/Reservation/Ready) 모두 유지, 신규 Engine/Manager 없음, 기존 로직 리팩토링 없음
+
+### Sprint 11 (완료) — Ticket Discovery Center
+
+**1단계(설계) 조사 결과**: 이번 Sprint를 시작하기 전에 인터파크가 공식 API/RSS/공식 공연 일정/공식 오픈 일정/공식 공지 중 이 프로젝트가 실제로 사용할 수 있는 방식을 제공하는지 웹 검색으로 조사했다.
+
+- 공식 API: `shop.interpark.com/openapi/`에 "인터파크 표준 API"가 존재하지만, 이는 인터파크 **쇼핑(오픈마켓 판매자용) API**이며 상품 주문/판매 연동이 목적이다. 공연 티켓 오픈 일정과는 무관한 별개 사업부 API이고, 신청도 판매자 대상(`api@interparkcs.com` 메일 접수)이라 이 프로젝트가 사용할 수 있는 대상이 아니다.
+- RSS: 검색 결과 범위 내에서 `tickets.interpark.com`(NOL 티켓)의 티켓 오픈 일정을 위한 공식 RSS 피드는 발견하지 못했다.
+- 공식 공연 일정 / 공식 오픈 일정: `tickets.interpark.com/contents/notice`에 "오픈예정" 공지 게시판이 공개되어 있다(사람이 웹 브라우저로 보는 페이지). 다만 이는 제3자가 프로그램적으로 가져다 쓰도록 설계·문서화된 기계 판독용 피드/API가 아니라 사람이 보는 일반 웹페이지다.
+- 공식 공지: 위와 동일하게 `tickets.interpark.com/contents/notice`의 개별 공지 페이지(`/contents/notice/detail/{id}`)로 확인된다.
+
+**결론**: 이 프로젝트가 지금 바로 연동할 수 있는, 문서화되고 제3자에게 공개된 API/RSS는 확인되지 않았다. 공개 웹페이지(오픈예정 공지 게시판)는 존재하지만, 이를 프로그램으로 긁어오는 것은 PM 지시("크롤링 우회 금지", "공식적으로 공개된 정보만 사용")의 취지에 비추어 볼 때 안전한 방식이라고 판단하지 않았다 — 문서화된 API/RSS 계약이 없는 상태에서의 자동 수집은 "크롤링"과 실질적으로 같고, 인터파크의 명시적 허가 없이는 이용약관 위반 소지가 있다.
+
+**선택한 방식과 이유**: `SessionChecker`(Sprint 8)와 동일한 "교체 가능한 Provider" 패턴을 그대로 적용해 `DiscoveryDataProvider` 인터페이스를 만들고, 현재는 `mockDiscoveryDataProvider`(Mock 데이터)를 기본값으로 연결했다. 실제 서비스 단계에서 인터파크와 공식 데이터 제휴(API 키 발급 등)를 맺으면, `DiscoveryManager` 생성자에 실제 Provider를 주입하는 것만으로 교체 가능하며 Repository/Manager/화면 코드는 전혀 손댈 필요가 없다. 이 방식은 실제 서비스 동작을 정직하게 표시하면서도(모든 Discovery 아이템에 `source: 'MOCK'` 표시) 향후 확장 경로를 막지 않는다.
+
+**2단계 Architecture**: 기존 Reservation/Plugin/Session/Scheduler/Simulation/Ready/Execution Domain은 코드 한 줄도 수정하지 않았다(`git diff develop --stat` 확인, 아래 "변경 파일" 참고). 새 Domain은 지시대로 Discovery 1개만 추가했다.
+
+- [x] **3단계 Discovery Domain** — Repository(LocalStorage, 캐시+즐겨찾기 ID), Manager(단일 진입점: list/refresh/search/즐겨찾기/prepareReservation), Model(D-day 계산/라벨/키워드 검색/Reservation Draft 변환), Types, Rule(DiscoveryRule, TTL 30분), Provider(DiscoveryDataProvider + Mock 구현), Mock 데이터(6건, 매 호출 시점 기준 상대 날짜로 생성해 날짜가 오래되지 않도록 함)
+- [x] **4단계 Home** — 하단 메뉴(BottomNavigation)에 "🔍 공연 찾기" 추가. 기존에는 하단 메뉴가 라벨만 있고 실제 이동 기능이 없었는데, 이번에 Home/공연 찾기 두 항목을 실제 `Link`로 연결했다(History/Setting은 아직 화면이 없어 계속 비활성 상태로 남김)
+- [x] **5단계 Discovery 화면(`/discovery`)** — 목록에 아티스트/제목/상태(오픈예정/예매중/종료)/공연일시/장소/예매 오픈 일시/D-day/[예약 준비] 버튼 표시
+- [x] **6단계 검색** — 아티스트/제목 키워드로 실시간 필터링(이미 불러온 목록 내에서만 필터링하며 키 입력마다 재조회하지 않음)
+- [x] **7단계 관심공연** — ☆/★ 버튼으로 즐겨찾기 추가/삭제, "즐겨찾기만 보기" 체크박스
+- [x] **8단계 Reservation 연결** — [예약 준비] 클릭 시 `DiscoveryItem`을 `ReservationDraft`로 변환해 기존 `ReservationManager.create()`로 등록하고 Ready Screen(`/ready/:id`)으로 이동. 동일 공연으로 이미 연결된 예약이 있으면 새로 만들지 않고 재사용(중복 방지). Reservation 등록만 수행하며, 실제 예약 페이지 진입/자동 클릭/자동 예약/자동 좌석선택/자동 결제는 전혀 수행하지 않는다(그 이후는 기존 Ready Screen의 수동 흐름을 그대로 따른다)
+- [x] **9단계 Cache** — Discovery 목록을 LocalStorage에 캐시하고 TTL 30분(`DEFAULT_DISCOVERY_RULE.cacheTtlMinutes`)이 지나면 재조회. Magic Number 없이 Rule 객체로 관리(ReadyRule/ExecutionRule과 동일한 패턴)
+- [x] **10단계 Offline** — `navigator.onLine`이 false면 재조회를 시도하지 않고 캐시에 저장된 마지막 조회 데이터를 그대로 표시. 화면에 "오프라인 상태입니다. 마지막으로 조회한 정보를 표시하고 있습니다." 안내 배너 표시. 온라인으로 복귀하면 자동으로 재조회
+
+구현 금지 항목(자동 예약/자동 클릭/자동 로그인/자동 좌석선택/자동 결제/크롤링 우회/비공개 API)은 구현하지 않았다.
+
+**변경 파일**: `src/App.tsx`(`/discovery` 라우트 추가), `src/components/layout/BottomNavigation.tsx`(실제 Link로 전환 + "🔍 공연 찾기" 추가). 이 외 기존 파일은 전혀 수정하지 않았다.
+
+**신규 파일(Discovery Domain, 10개)**: `src/domain/discovery/{types.ts, index.ts, rule/discoveryRule.ts, mock/discovery.mock.ts, provider/discovery.provider.ts, model/discovery.model.ts, repository/discovery.repository.ts, repository/discovery.repository.localStorage.ts, repository/index.ts, manager/discovery.manager.ts}`
+
+**신규 파일(화면, 2개)**: `src/pages/Discovery/{Discovery.tsx, index.ts}`
+
+**삭제된 파일**: 없음(0개)
+
+**기존 코드 유지율(%)**: 약 99.5% (develop 기준 `src/` 전체 4,679줄 중 이번 Sprint에서 삭제된 줄은 22줄 — 전부 `BottomNavigation.tsx`를 정적 `<span>` 목록에서 실제 `<Link>` 목록으로 바꾸며 기존 줄을 다시 쓴 부분이며, 로직 삭제가 아니다)
+
+**기존 Domain 재사용률**: Reservation Domain은 수정 없이 100% 그대로 재사용(`reservationManager.list()`/`create()` 호출). Plugin/Session/Scheduler/Simulation/Ready/Execution Domain은 이번 Sprint에서 직접 호출하지 않았지만, [예약 준비]로 생성된 Reservation이 곧바로 기존 Ready Screen 흐름(Session/Plugin 상태 확인 등)으로 이어지므로 간접적으로는 계속 연결되어 있다.
+
+**MVP 테스트 결과**
+
+- 정적 검증: 전체 `src/` import 경로 해석(Python 스크립트) 통과, 금지 패턴(`puppeteer`/`playwright`/`selenium`/자동클릭/비밀번호/`fetch(...interpark`/`axios(...interpark` 등) grep 검사에서 발견 없음, 신규/변경 파일 전체 중괄호·괄호 balance 검사 통과
+- Architecture 영향 점검: `git diff develop --stat` 결과 기존 Domain(Reservation/Plugin/Session/Scheduler/Simulation/Ready/Execution) 폴더 내 파일은 한 개도 변경되지 않았고, `App.tsx`/`BottomNavigation.tsx`(라우팅/네비게이션, Domain 아님) 2개 파일만 수정되었음을 확인
+- `npm install` 시도: 이 개발 환경은 npm 레지스트리 접근이 차단되어 있어(`403 Forbidden`, Sprint 8부터 동일하게 반복 확인된 제약) 실제 `tsc`/`vite build`/`npm run dev`를 실행하지 못했다. **PM이 로컬에서 직접 확인 필요**
+- 발견된 버그: 없음(정적 검증 범위 내)
+
+**PM Review 요청**
+
+1. 1단계 조사 결과, 인터파크의 공식 API는 이 프로젝트와 무관한 쇼핑(오픈마켓) API뿐이었고 티켓 오픈 일정용 공식 API/RSS는 찾지 못했다. Mock Provider로 우선 구현하는 이번 방향이 맞는지, 혹은 인터파크와 별도의 공식 데이터 제휴를 추진할지 확인 부탁드린다.
+2. `tickets.interpark.com/contents/notice`(오픈예정 공지 게시판)는 사람이 보는 공개 웹페이지로 존재한다. 향후 이 페이지를 프로그램으로 읽어오는 것을 "공식적으로 공개된 정보 사용"으로 볼 수 있을지, 아니면 여전히 문서화된 API/제휴 없이는 시도하지 않아야 하는지 방향을 확인 부탁드린다(현재 구현에는 포함하지 않았다).
+3. Discovery Mock 데이터는 아이유/임영웅/세븐틴 등 예시 아티스트명을 사용했다. 실제 서비스 전환 전에 예시 데이터를 그대로 노출해도 괜찮을지, 혹은 더 일반적인 이름(예: "아티스트 A")으로 바꿀지 확인 부탁드린다.
