@@ -1,7 +1,7 @@
 import { SiteType, type Reservation } from '@/types/reservation'
 import type { ReservationDraft } from '@/domain/reservation'
 import { DiscoveryStatus, type DiscoveryItem } from '../types'
-import { parseLocalDateTime } from '@/utils/time'
+import { parseLocalDateTime, toDateString } from '@/utils/time'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
@@ -19,10 +19,17 @@ export function getDiscoveryStatusLabel(status: DiscoveryStatus): string {
 /**
  * openTime까지 남은 일수를 "D-n"/"D-DAY"/"D+n" 형태로 표시한다.
  * PM 지시(Sprint 11) 예시: "D-10"과 같은 형태.
+ *
+ * 버그 수정(Sprint 12, ⑦ 발견된 버그 수정): 기존에는 openTime과 now의 정확한 시:분:초
+ * 차이를 24시간 단위로 올림(Math.ceil)해서 계산했다. 그 결과 "오늘 20시 오픈"인데
+ * 지금이 "오늘 09시"면 같은 날짜인데도 "D-1"로 표시되는 오류가 있었다(단위 테스트로 발견).
+ * 사용자가 기대하는 "D-DAY"는 "오픈 시각까지 정확히 24시간 이내"가 아니라 "오늘이 오픈일인가"
+ * 이므로, 시:분:초를 버리고 날짜(YYYY-MM-DD)만 비교하도록 수정했다.
  */
 export function formatDDay(openTime: string, now: Date): string {
-  const openDate = parseLocalDateTime(openTime)
-  const diffDays = Math.ceil((openDate.getTime() - now.getTime()) / DAY_MS)
+  const openDateOnly = new Date(toDateString(parseLocalDateTime(openTime))).getTime()
+  const nowDateOnly = new Date(toDateString(now)).getTime()
+  const diffDays = Math.round((openDateOnly - nowDateOnly) / DAY_MS)
   if (diffDays === 0) return 'D-DAY'
   if (diffDays > 0) return `D-${diffDays}`
   return `D+${Math.abs(diffDays)}`
@@ -76,6 +83,53 @@ export function findLinkedReservation(
       reservation.eventDate === item.eventDate &&
       reservation.eventTime === (item.eventTime ?? '00:00')
   )
+}
+
+/**
+ * Discovery 목록 정렬 순서를 정하는 상태별 가중치.
+ * PM 지시(Sprint 12, ① UI/UX 개선): 예매중/오픈예정 공연을 먼저 보여주고,
+ * 이미 종료된 공연은 목록 뒤로 보낸다.
+ */
+const STATUS_SORT_WEIGHT: Record<DiscoveryStatus, number> = {
+  [DiscoveryStatus.Open]: 0,
+  [DiscoveryStatus.Upcoming]: 0,
+  [DiscoveryStatus.Closed]: 1,
+}
+
+/**
+ * Discovery 목록을 정렬한다: 종료(Closed)된 공연은 뒤로 보내고,
+ * 그 외에는 예매 오픈 일시(openTime)가 가까운 순으로 정렬한다.
+ * 원본 배열은 변경하지 않는다(새 배열을 반환).
+ */
+export function sortDiscoveryItems(items: DiscoveryItem[]): DiscoveryItem[] {
+  return [...items].sort((a, b) => {
+    const weightDiff = STATUS_SORT_WEIGHT[a.status] - STATUS_SORT_WEIGHT[b.status]
+    if (weightDiff !== 0) return weightDiff
+    return (
+      parseLocalDateTime(a.openTime).getTime() -
+      parseLocalDateTime(b.openTime).getTime()
+    )
+  })
+}
+
+/**
+ * 목록에 실제로 존재하는 장르만 중복 없이 반환한다(검색 편의성 개선, Sprint 12 ②).
+ * genre가 없는 아이템은 제외한다. 화면의 장르 필터 Chip 구성에 사용한다.
+ */
+export function getAvailableGenres(items: DiscoveryItem[]): string[] {
+  const genres = items
+    .map((item) => item.genre)
+    .filter((genre): genre is string => Boolean(genre))
+  return Array.from(new Set(genres))
+}
+
+/** 장르로 필터링한다. genre가 null/빈 문자열이면 필터링 없이 그대로 반환한다. */
+export function filterDiscoveryByGenre(
+  items: DiscoveryItem[],
+  genre: string | null
+): DiscoveryItem[] {
+  if (!genre) return items
+  return items.filter((item) => item.genre === genre)
 }
 
 /** Discovery 도메인이 다루는 사이트는 현재 Interpark 하나뿐이다(MVP 범위, Reservation과 동일). */
